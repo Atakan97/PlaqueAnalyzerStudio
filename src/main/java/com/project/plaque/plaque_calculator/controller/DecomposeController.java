@@ -31,6 +31,8 @@ public class DecomposeController {
 	private static final String ATTEMPT_COUNT_SESSION_KEY = "attemptCount";
 	private static final String NORMALIZATION_START_TIME_KEY = "normalizationStartTime";
 	private static final String STREAM_REQUESTS_SESSION_KEY = "decomposeStreamRequests";
+	// Session key used by NormalizationController for per-computation start time
+	private static final String COMPUTATION_START_TIME_KEY = "normalizationSessionStart";
 
 	public DecomposeController(DecomposeService decomposeService, LogService logService) {
 		this.decomposeService = decomposeService;
@@ -96,11 +98,12 @@ public class DecomposeController {
 	// POST /normalize/decompose-all (processing multiple decomposed-tables)
 	@PostMapping("/decompose-all")
 	public ResponseEntity<?> decomposeAll(@RequestBody DecomposeAllRequest req, HttpSession session) {
-		recordNormalizationAttemptsAndStartTime(session);
+		String computationId = req.getComputationId();
+		recordNormalizationAttemptsAndStartTime(session, computationId);
 
 		DecomposeAllResponse response = decomposeService.decomposeAll(req, session);
 
-		storeBcnfDataIfComplete(session, response);
+		storeBcnfDataIfComplete(session, response, computationId);
 
 		return ResponseEntity.ok(response);
 	}
@@ -115,7 +118,7 @@ public class DecomposeController {
 			}
 
 			String computationId = req.getComputationId();
-			recordNormalizationAttemptsAndStartTime(session);
+			recordNormalizationAttemptsAndStartTime(session, computationId);
 			AtomicInteger index = new AtomicInteger(1);
 			tables.forEach(table -> {
 				// propagate computationId to per-table requests so DecomposeService can resolve session keys
@@ -139,7 +142,7 @@ public class DecomposeController {
 			});
 
 			DecomposeAllResponse aggregate = decomposeService.decomposeAll(req, session);
-			storeBcnfDataIfComplete(session, aggregate);
+			storeBcnfDataIfComplete(session, aggregate, computationId);
 			emitComplete(emitter, aggregate);
 		} catch (Exception ex) {
 			emitError(emitter, ex.getMessage() == null ? "Normalization failed." : ex.getMessage());
@@ -198,54 +201,89 @@ public class DecomposeController {
 		return String.format(Locale.US, "%.2f s", elapsedMs / 1000.0);
 	}
 
-	private int recordNormalizationAttemptsAndStartTime(HttpSession session) {
-		Integer attemptCount = (Integer) session.getAttribute(ATTEMPT_COUNT_SESSION_KEY);
+	/**
+	 * Resolves the session key prefix based on computationId.
+	 * If computationId is provided, returns "computation_{id}_", otherwise returns empty string.
+	 */
+	private String getSessionKeyPrefix(String computationId) {
+		if (computationId == null || computationId.isBlank()) {
+			return "";
+		}
+		return "computation_" + computationId + "_";
+	}
+
+	private int recordNormalizationAttemptsAndStartTime(HttpSession session, String computationId) {
+		String prefix = getSessionKeyPrefix(computationId);
+
+		// Get current attempt count - if not set, initialize to 1
+		Integer attemptCount = (Integer) session.getAttribute(prefix + ATTEMPT_COUNT_SESSION_KEY);
 		if (attemptCount == null) {
 			attemptCount = 1;
-			session.setAttribute(ATTEMPT_COUNT_SESSION_KEY, attemptCount);
+			session.setAttribute(prefix + ATTEMPT_COUNT_SESSION_KEY, attemptCount);
 		}
 
-		if (attemptCount == 1) {
-			Long sessionStart = (Long) session.getAttribute("normalizationSessionStart");
-			if (sessionStart == null) {
-				sessionStart = System.currentTimeMillis();
-				session.setAttribute("normalizationSessionStart", sessionStart);
-			}
-			if (session.getAttribute(NORMALIZATION_START_TIME_KEY) == null) {
-				session.setAttribute(NORMALIZATION_START_TIME_KEY, sessionStart);
-			}
+		// Start time is set by NormalizationController when page loads
+		// We use the same key to read it: "computation_{id}_normalizationSessionStart"
+		Long sessionStart = (Long) session.getAttribute(prefix + COMPUTATION_START_TIME_KEY);
+		if (sessionStart == null) {
+			// If not set, use current time
+			sessionStart = System.currentTimeMillis();
+			session.setAttribute(prefix + COMPUTATION_START_TIME_KEY, sessionStart);
 		}
+
+		if (session.getAttribute(prefix + NORMALIZATION_START_TIME_KEY) == null) {
+			session.setAttribute(prefix + NORMALIZATION_START_TIME_KEY, sessionStart);
+		}
+
 		return attemptCount;
 	}
 
-	private void storeBcnfDataIfComplete(HttpSession session, DecomposeAllResponse response) {
+	private void storeBcnfDataIfComplete(HttpSession session, DecomposeAllResponse response, String computationId) {
 		if (response == null || !response.isBCNFDecomposition()) {
+			System.out.println("[DecomposeController] storeBcnfDataIfComplete: BCNF not yet achieved, skipping storage.");
 			return;
 		}
 
-		Long startTime = (Long) session.getAttribute(NORMALIZATION_START_TIME_KEY);
+		System.out.println("[DecomposeController] storeBcnfDataIfComplete: BCNF achieved, storing data...");
+
+		String prefix = getSessionKeyPrefix(computationId);
+
+		// Read start time from the prefixed session key (set by NormalizationController)
+		Long startTime = (Long) session.getAttribute(prefix + COMPUTATION_START_TIME_KEY);
 		if (startTime == null) {
-			startTime = (Long) session.getAttribute("normalizationSessionStart");
+			startTime = (Long) session.getAttribute(prefix + NORMALIZATION_START_TIME_KEY);
 		}
+		// Fallback to non-prefixed keys for backwards compatibility
+		if (startTime == null) {
+			startTime = (Long) session.getAttribute(COMPUTATION_START_TIME_KEY);
+		}
+		if (startTime == null) {
+			startTime = (Long) session.getAttribute(NORMALIZATION_START_TIME_KEY);
+		}
+
 		long elapsedSeconds = 0;
 		if (startTime != null) {
 			long currentTime = System.currentTimeMillis();
 			elapsedSeconds = Math.max(0, (currentTime - startTime) / 1000);
 		}
 
-		Integer attemptCount = (Integer) session.getAttribute(ATTEMPT_COUNT_SESSION_KEY);
+		// Read attempt count from the prefixed session key
+		Integer attemptCount = (Integer) session.getAttribute(prefix + ATTEMPT_COUNT_SESSION_KEY);
+		if (attemptCount == null) {
+			// Fallback to non-prefixed key
+			attemptCount = (Integer) session.getAttribute(ATTEMPT_COUNT_SESSION_KEY);
+		}
 		if (attemptCount == null) {
 			attemptCount = 1;
 		}
 
+
+		// Store BCNF data in non-prefixed session keys (used by bcnf-review endpoint)
 		session.setAttribute("bcnfAttempts", attemptCount);
 		session.setAttribute("bcnfElapsedTime", elapsedSeconds);
 		int tableCount = response.getTableResults() != null ? response.getTableResults().size() : 0;
 		session.setAttribute("bcnfTableCount", tableCount);
 		session.setAttribute("bcnfDependencyPreserved", response.isDpPreserved());
 
-		session.removeAttribute(ATTEMPT_COUNT_SESSION_KEY);
-		session.removeAttribute(NORMALIZATION_START_TIME_KEY);
-		session.removeAttribute("normalizationSessionStart");
 	}
 }

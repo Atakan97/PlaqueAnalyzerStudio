@@ -243,6 +243,28 @@ document.addEventListener('DOMContentLoaded', () => {
         container.appendChild(tablesFragment);
     }
 
+    /**
+     * Generates star icons for the rating display.
+     * Filled stars are gold, empty stars are gray.
+     */
+    function generateStarRatingHTML(rating) {
+        const filledStar = `<svg class="star-icon star-filled" viewBox="0 0 24 24" width="28" height="28">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                  fill="#f59e0b" stroke="#d97706" stroke-width="1"/>
+        </svg>`;
+
+        const emptyStar = `<svg class="star-icon star-empty" viewBox="0 0 24 24" width="28" height="28">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                  fill="#e5e7eb" stroke="#9ca3af" stroke-width="1"/>
+        </svg>`;
+
+        let starsHTML = '';
+        for (let i = 0; i < 5; i++) {
+            starsHTML += i < rating ? filledStar : emptyStar;
+        }
+        return starsHTML;
+    }
+
     if (form) {
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -264,10 +286,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (response.ok) {
+                    // Parse the response to get the star rating
+                    const data = await response.json();
+                    const starRating = data.starRating || 1;
+                    const starsHTML = generateStarRatingHTML(starRating);
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Results Saved',
-                        text: 'BCNF results have been saved successfully.',
+                        html: `
+                            <p style="margin-bottom: 16px;">BCNF results have been saved successfully.</p>
+                            <div class="star-rating-display">
+                                <span class="rating-label">Your Rating:</span>
+                                <div class="stars-container">${starsHTML}</div>
+                            </div>
+                        `,
                         confirmButtonText: 'OK'
                     }).then(() => {
                         form.reset();

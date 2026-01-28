@@ -80,10 +80,15 @@ public class NormalizationController {
 			Integer tableCount = (Integer) session.getAttribute("bcnfTableCount");
 			Boolean dependencyPreserved = (Boolean) session.getAttribute("bcnfDependencyPreserved");
 			String plaqueMode = (String) session.getAttribute("plaqueMode");
-			logService.logBcnfSuccess(userName, attempts, elapsedTime, tableCount, dependencyPreserved, plaqueMode);
+
+			// Log the success and get the calculated star rating
+			int starRating = logService.logBcnfSuccess(userName, attempts, elapsedTime, tableCount, dependencyPreserved, plaqueMode);
+
 			session.removeAttribute("bcnfTableCount");
 			session.removeAttribute("bcnfDependencyPreserved");
-			return ResponseEntity.ok().build();
+
+			// Return the star rating to the frontend
+			return ResponseEntity.ok().body(java.util.Map.of("starRating", starRating));
 		} catch (Exception e) {
 			System.err.println("Error logging BCNF success: " + e.getMessage());
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to log success.");
@@ -104,11 +109,13 @@ public class NormalizationController {
 		}
 
 		Number attemptsFromSession = (Number) session.getAttribute("bcnfAttempts");
+		logService.info("[NormalizationController] bcnf-review: bcnfAttempts from session = " + attemptsFromSession);
 		if (attemptsFromSession != null) {
 			summaryData.put("attempts", attemptsFromSession.intValue());
 		}
 
 		Number elapsedFromSession = (Number) session.getAttribute("bcnfElapsedTime");
+		logService.info("[NormalizationController] bcnf-review: bcnfElapsedTime from session = " + elapsedFromSession);
 		if (elapsedFromSession != null) {
 			summaryData.put("elapsedTime", elapsedFromSession.longValue());
 		}
@@ -136,9 +143,14 @@ public class NormalizationController {
 		}
 
 		session.setAttribute(BCNF_SUMMARY_SESSION_KEY, summaryData);
+
+		// Clean up all normalization-related session attributes after capturing values
 		session.removeAttribute("bcnfAttempts");
 		session.removeAttribute("bcnfElapsedTime");
 		session.removeAttribute("normalizationSessionStart");
+		session.removeAttribute("attemptCount");
+		session.removeAttribute("normalizationStartTime");
+
 		Map<String, Object> response = new HashMap<>();
 		response.put("redirectUrl", "/normalize/bcnf-summary");
 		return ResponseEntity.ok(response);
@@ -187,15 +199,20 @@ public class NormalizationController {
 		return null;
 	}
 	@PostMapping("/increment-attempt")
-	public ResponseEntity<?> incrementAttempt(HttpSession session) {
-		// Use same key as DecomposeController
-		Integer attemptCount = (Integer) session.getAttribute("attemptCount");
+	public ResponseEntity<?> incrementAttempt(
+			@RequestParam(value = "computationId", required = false) String computationId,
+			HttpSession session) {
+		// Build the prefix based on computationId
+		String prefix = (computationId == null || computationId.isBlank()) ? "" : ("computation_" + computationId + "_");
+
+		// Use prefixed key for attempt count
+		Integer attemptCount = (Integer) session.getAttribute(prefix + "attemptCount");
 		if (attemptCount == null) {
 			attemptCount = 1;
 		}
 		attemptCount++;
-		session.setAttribute("attemptCount", attemptCount);
-		logService.info("[NormalizationController] Attempt count incremented to: " + attemptCount);
+		session.setAttribute(prefix + "attemptCount", attemptCount);
+		logService.info("[NormalizationController] Attempt count incremented to: " + attemptCount + " (prefix=" + prefix + ")");
 		return ResponseEntity.ok().build();
 	}
 

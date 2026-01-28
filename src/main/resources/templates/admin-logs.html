@@ -283,35 +283,47 @@
       text-align: center;
       font-weight: 600;
     }
-    .details-cell {
-      max-width: 500px;
-      position: relative;
+    .col-rating {
+      text-align: center;
     }
-    .details-json {
-      background: #1e293b;
-      color: #e2e8f0;
-      padding: 12px 16px;
+    .col-rating .rating-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      border: 1px solid #fcd34d;
       border-radius: 8px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.8rem;
-      line-height: 1.5;
-      max-height: 150px;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-    .details-json::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+    .col-rating .admin-star-rating {
+      color: #f59e0b;
+      font-size: 1rem;
+      letter-spacing: 2px;
     }
-    .details-json::-webkit-scrollbar-track {
-      background: #334155;
-      border-radius: 4px;
+    .col-plaque-mode {
+      text-align: center;
     }
-    .details-json::-webkit-scrollbar-thumb {
-      background: #64748b;
-      border-radius: 4px;
+    .plaque-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s ease;
+    }
+    .plaque-badge--enabled {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+      box-shadow: 0 2px 4px rgba(5, 150, 105, 0.15);
+    }
+    .plaque-badge--disabled {
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 2px 4px rgba(71, 85, 105, 0.1);
     }
     .delete-btn {
       background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -440,14 +452,15 @@
           <th>Process Type</th>
           <th>Duration</th>
           <th>Attempts</th>
-          <th>Details (JSON)</th>
+          <th>Rating</th>
+          <th>Plaque Mode</th>
           <th style="text-align: center;">Action</th>
         </tr>
         </thead>
         <tbody>
         <!-- Boş durum -->
         <tr th:if="${logs == null or logs.isEmpty()}">
-          <td colspan="8">
+          <td colspan="9">
             <div class="empty-state">
               <div class="empty-state-icon">📭</div>
               <div class="empty-state-text">No log records found</div>
@@ -475,8 +488,20 @@
             8 s
           </td>
           <td class="col-attempts" th:text="${log.attempts != null ? log.attempts : '-'}">1</td>
-          <td class="details-cell">
-            <pre class="details-json" th:text="${log.detailsJson}">{"key": "value"}</pre>
+          <td class="col-rating">
+            <div class="rating-badge" th:if="${log.starRating != null}">
+              <span class="admin-star-rating" th:utext="${#strings.repeat('★', log.starRating)}"></span>
+            </div>
+            <span th:if="${log.starRating == null}">-</span>
+          </td>
+          <td class="col-plaque-mode">
+            <span
+              class="plaque-badge"
+              th:classappend="${log.plaqueMode == 'enabled' ? 'plaque-badge--enabled' : 'plaque-badge--disabled'}"
+              th:text="${log.plaqueMode == 'enabled' ? 'ENABLED' : 'DISABLED'}"
+            >
+              ENABLED
+            </span>
           </td>
           <td style="text-align: center;">
             <form th:action="@{/admin/delete/{id}(id=${log.id})}" method="post" class="delete-log-form" style="margin: 0;">

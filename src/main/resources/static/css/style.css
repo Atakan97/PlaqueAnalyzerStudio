@@ -2233,3 +2233,76 @@ input[type="file"]::file-selector-button:hover {
 .table-vertical-scroll-wrapper .data-grid {
     margin-top: 0;
 }
+
+/* =============================================
+   Star Rating Display Styles
+   Used in bcnf-summary page and admin-logs page
+   ============================================= */
+
+/* Container for star rating display in SweetAlert popup */
+.star-rating-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 12px;
+    border: 1px solid #f59e0b;
+}
+
+.star-rating-display .rating-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.star-rating-display .stars-container {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+/* Star icon styles */
+.star-icon {
+    display: inline-block;
+    vertical-align: middle;
+    transition: transform 0.2s ease;
+}
+
+.star-icon.star-filled {
+    filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4));
+}
+
+/* Admin panel star rating styles */
+.admin-star-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.admin-star-rating .star-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Rating badge for admin panel table */
+.rating-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.rating-badge .rating-text {
+    color: #92400e;
+    font-weight: 600;
+}
+

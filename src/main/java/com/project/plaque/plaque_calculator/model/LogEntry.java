@@ -29,11 +29,12 @@ public class LogEntry {
 	// Process duration
 	private Long elapsedTimeSecs;
 
-	// Detailed data (Input FDs, Output Tables, etc.)
-	@Lob
-	@Column(columnDefinition = "TEXT")
-	private String detailsJson;
+	// Plaque mode status: "enabled" for with-plaque mode, "disabled" for no-plaque mode
+	private String plaqueMode;
 
 	// Number of attempts
 	private Integer attempts;
+
+	// Star rating based on performance (1 to 5 stars)
+	private Integer starRating;
 }

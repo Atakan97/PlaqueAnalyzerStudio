@@ -63,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const relationBcnfStatus = new Map();
     const RELATION_PAIR_COLORS = ['#6366F1', '#0EA5E9', '#14B8A6', '#F59E0B', '#EC4899', '#8B5CF6', '#22C55E', '#F97316'];
 
+    // Track attempt count in JavaScript (starts at 1 for the first attempt)
+    let currentAttemptCount = 1;
+
     // Gives each relation group a stable id in order to store its status
     function getRelationId(group) {
         if (!group) return null;
@@ -2670,9 +2673,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (result.isConfirmed) {
-                // Increment attempt count on backend
+                // Increment attempt count both locally and on backend
+                currentAttemptCount++;
                 try {
-                    await fetch('/normalize/increment-attempt', {
+                    const compId = window.computationId || '';
+                    await fetch(`/normalize/increment-attempt?computationId=${encodeURIComponent(compId)}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
                     });
@@ -3132,8 +3137,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (localBcnf) {
                 const CURRENT_TIME_MS = Date.now();
                 finalElapsed = Math.max(0, Math.floor((CURRENT_TIME_MS - SESSION_START_TIME_MS) / 1000));
-                const parsedAttempts = parseInt(attemptEl?.textContent || '0', 10);
-                finalAttempts = Number.isFinite(parsedAttempts) ? parsedAttempts : 0;
+                // Use the currentAttemptCount variable instead of DOM element
+                finalAttempts = currentAttemptCount;
             }
 
             const globalComplete = applyGlobalBcnfOutcome({
@@ -3772,9 +3777,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     confirmButtonText: 'Yes, change it!'
                 });
                 if (confirm.isConfirmed) {
-                    // Increment attempt count on backend
+                    // Increment attempt count both locally and on backend
+                    currentAttemptCount++;
                     try {
-                        await fetch('/normalize/increment-attempt', {
+                        const compId = window.computationId || '';
+                        await fetch(`/normalize/increment-attempt?computationId=${encodeURIComponent(compId)}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' }
                         });
