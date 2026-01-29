@@ -2568,7 +2568,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let finalMessage = "Decomposition Check Results:\n\n";
                 finalMessage += "• " + coverageResult.message.replace('Error:', 'ERROR:');
                 finalMessage += "\n\n------------------------------------\n";
-                finalMessage += "Please revise your decomposition based on the errors.";
+                finalMessage += "💡 Please revise your decomposition based on the errors above.";
 
                 // Return the interface to normal
                 document.body.style.cursor = 'default';
@@ -2910,6 +2910,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             source.addEventListener('progress', (evt) => {
                 const data = parseSseData(evt);
+                // In no-plaque mode, skip showing computation progress messages
+                if (window.plaqueMode === 'disabled') {
+                    // Still ensure modal is open but don't show progress messages
+                    ensureProgressModal();
+                    return;
+                }
                 appendProgress(data.message || 'Working...');
             });
 
@@ -3123,13 +3129,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const scopeResult = relationGroup ? lastScopedComputation?.response : window._lastDecomposeResult;
             const localBcnf = scopeResult && scopeResult.bcnfdecomposition === true;
 
-            // Show the calculation success message (after pressing "Compute Plaque" button) and wait for it to close
-            await Swal.fire({
-                icon: 'success',
-                title: 'Calculation Complete!',
-                text: 'Relational information content calculation completed for all decomposed tables.',
-                confirmButtonText: 'OK'
-            });
+            // Show the calculation success message (after pressing "Compute Plaque" button) only in with-plaque mode
+            if (window.plaqueMode !== 'disabled') {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Calculation Complete!',
+                    text: 'Relational information content calculation completed for all decomposed tables.',
+                    confirmButtonText: 'OK'
+                });
+            }
             // ------------------------------------------------------------------------------------
 
             let finalAttempts = 0;
@@ -4132,6 +4140,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             payload = { ...state.payload };
         }
+
+        // Keep the computation id so summary navigation can return to the same session.
+        payload.computationId = window.computationId;
 
         const bcnfMeta = window._lastBcnfMeta || { attempts: 0, elapsed: 0 };
         payload.attempts = bcnfMeta.attempts || 0;

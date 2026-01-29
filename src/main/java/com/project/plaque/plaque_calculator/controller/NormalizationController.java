@@ -42,8 +42,6 @@ public class NormalizationController {
 		if (history == null) {
 			history = new ArrayList<>();
 		}
-
-
 		// Append current state (body) to the end of history
 		history.add(body);
 		logService.info("[NormalizationController] history size after append=" + history.size());
@@ -106,6 +104,24 @@ public class NormalizationController {
 		String computationId = body.get("computationId") != null ? String.valueOf(body.get("computationId")) : null;
 		if (computationId != null && !computationId.isEmpty() && !"null".equals(computationId)) {
 			summaryData.put("computationId", computationId);
+		}
+
+		// Save the current normalization step for returning to it later
+		String prefix = (computationId == null || computationId.isBlank() || "null".equals(computationId))
+			? ""
+			: ("computation_" + computationId + "_");
+		@SuppressWarnings("unchecked")
+		List<Map<String, Object>> history = (List<Map<String, Object>>) session.getAttribute(prefix + HISTORY_SESSION_KEY);
+		if (history == null) {
+			history = new ArrayList<>();
+		}
+		Map<String, Object> currentSnapshot = buildNormalizationSnapshot(body);
+		Map<String, Object> lastSnapshot = history.isEmpty()
+			? null
+			: buildNormalizationSnapshot(history.get(history.size() - 1));
+		if (lastSnapshot == null || !lastSnapshot.equals(currentSnapshot)) {
+			history.add(currentSnapshot);
+			session.setAttribute(prefix + HISTORY_SESSION_KEY, history);
 		}
 
 		Number attemptsFromSession = (Number) session.getAttribute("bcnfAttempts");
@@ -198,6 +214,24 @@ public class NormalizationController {
 		}
 		return null;
 	}
+
+	// Keep only the fields needed to restore a normalization step.
+	private Map<String, Object> buildNormalizationSnapshot(Map<String, Object> source) {
+		Map<String, Object> snapshot = new HashMap<>();
+		if (source == null) {
+			return snapshot;
+		}
+		snapshot.put("columnsPerTable", source.get("columnsPerTable"));
+		snapshot.put("manualPerTable", source.get("manualPerTable"));
+		snapshot.put("fdsPerTable", source.get("fdsPerTable"));
+		snapshot.put("fdsPerTableOriginal", source.get("fdsPerTableOriginal"));
+		snapshot.put("ricPerTable", source.get("ricPerTable"));
+		snapshot.put("globalRic", source.get("globalRic"));
+		snapshot.put("unionCols", source.get("unionCols"));
+		snapshot.put("originalTable", source.get("originalTable"));
+		snapshot.put("originalRic", source.get("originalRic"));
+		return snapshot;
+	}
 	@PostMapping("/increment-attempt")
 	public ResponseEntity<?> incrementAttempt(
 			@RequestParam(value = "computationId", required = false) String computationId,
@@ -231,20 +265,17 @@ public class NormalizationController {
 		}
 
 		List<Map<String, Object>> updatedHistory = new ArrayList<>(history);
-		Map<String, Object> poppedState = updatedHistory.remove(updatedHistory.size() - 1);
+		updatedHistory.remove(updatedHistory.size() - 1);
 		logService.info("[NormalizationController] popped state. new history size=" + updatedHistory.size());
 		session.setAttribute(prefix + HISTORY_SESSION_KEY, updatedHistory);
 
-		Map<String, Object> restoreState = poppedState != null ? new HashMap<>(poppedState) : null;
+		// Clear restore flags so we can rely on the updated history for rendering.
+		clearRestoreState(session, prefix);
 
-		if (restoreState != null) {
-			session.setAttribute(prefix + RESTORE_SESSION_KEY, restoreState);
-			session.setAttribute(prefix + "usingDecomposedAsOriginal", Boolean.TRUE);
-			logService.info("[NormalizationController] restoreState keys=" + restoreState.keySet());
-		} else {
+		if (updatedHistory.isEmpty()) {
+			// If no history is left, go back to the initial normalization step.
 			logService.info("[NormalizationController] history exhausted after pop; resetting normalization state.");
 			session.setAttribute(prefix + RESET_SESSION_KEY, Boolean.TRUE);
-			clearRestoreState(session, prefix);
 		}
 		return computationId == null || computationId.isBlank()
 			? "redirect:/normalization"
