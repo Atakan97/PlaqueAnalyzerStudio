@@ -7,6 +7,8 @@ public class DecomposeResponse {
 	private List<String> projectedFDs;
 	private List<String> transitiveFDs; // Transitive closure FDs (inferred FDs)
 	private List<String> steps;
+	private Long ricElapsedMs;
+	private String ricStrategy;
 	private String normalForm; // "BCNF", "3NF", "2NF", "1NF"
 
 	// Constructor
@@ -43,6 +45,20 @@ public class DecomposeResponse {
 	}
 	public void setSteps(List<String> steps) {
 		this.steps = steps;
+	}
+
+	public Long getRicElapsedMs() {
+		return ricElapsedMs;
+	}
+	public void setRicElapsedMs(Long ricElapsedMs) {
+		this.ricElapsedMs = ricElapsedMs;
+	}
+
+	public String getRicStrategy() {
+		return ricStrategy;
+	}
+	public void setRicStrategy(String ricStrategy) {
+		this.ricStrategy = ricStrategy;
 	}
 
 	public String getNormalForm() {

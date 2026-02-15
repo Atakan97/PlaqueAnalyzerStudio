@@ -3,7 +3,6 @@ package com.project.plaque.plaque_calculator.controller;
 import com.project.plaque.plaque_calculator.model.LogEntry;
 import com.project.plaque.plaque_calculator.repository.LogRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,9 +13,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +26,9 @@ import java.util.stream.Collectors;
 public class AdminController {
 
 	private final LogRepository logRepository;
+
+	// Default sorting (newest logs first).
+	private static final String DEFAULT_SORT_OPTION = "timestamp_desc";
 
 	// Inject Admin Credentials from application.properties
 	@Value("${admin.username}")
@@ -45,18 +49,21 @@ public class AdminController {
 			HttpSession session,
 			Model model,
 			// userNameFilter filter
-			@RequestParam(value = "userNameFilter", required = false) String userNameFilter
+			@RequestParam(value = "userNameFilter", required = false) String userNameFilter,
+			// sortOption controls ordering on the Admin Panel
+			@RequestParam(value = "sortOption", required = false) String sortOption
 	) {
 		// Simple security check
 		if (session.getAttribute("isAdmin") == null) {
 			return "redirect:/";
 		}
 
-		// Clean input
+		// Clean inputs (trim spaces and use a safe default for sort).
 		String nameFilter = userNameFilter != null ? userNameFilter.trim() : "";
+		String resolvedSortOption = resolveSortOption(sortOption);
 
-		// Take all logs (with the newest on top according to the timestamp)
-		List<LogEntry> allLogs = logRepository.findAll(Sort.by(Sort.Direction.DESC, "timestamp"));
+		// Load logs and apply filtering/sorting in one place for predictable results.
+		List<LogEntry> allLogs = logRepository.findAll();
 
 		List<LogEntry> filteredLogs;
 
@@ -72,6 +79,9 @@ public class AdminController {
 					)
 					.collect(Collectors.toList());
 		}
+
+		// Apply the selected sort option (rating/date asc/desc).
+		filteredLogs.sort(buildLogComparator(resolvedSortOption));
 
 		// Active user count (unique userName count)
 		long activeUsers = filteredLogs.stream()
@@ -89,6 +99,8 @@ public class AdminController {
 
 		// Add logs and filter value to the Model
 		model.addAttribute("userNameFilter", nameFilter);
+		// Keep the selected sort option so the UI can show it as selected.
+		model.addAttribute("sortOption", resolvedSortOption);
 		// Adds logs to the model
 		model.addAttribute("logs", filteredLogs);
 		model.addAttribute("activeUsers", activeUsers);
@@ -98,10 +110,62 @@ public class AdminController {
 		return "admin-logs";
 	}
 
+	/**
+	 * Converts the raw query parameter to a known value.
+	 * This prevents invalid values and keeps the UI stable.
+	 */
+	private static String resolveSortOption(String sortOption) {
+		if (sortOption == null || sortOption.isBlank()) {
+			return DEFAULT_SORT_OPTION;
+		}
+
+		String normalized = sortOption.trim().toLowerCase(Locale.ROOT);
+		return switch (normalized) {
+			case "timestamp_asc", "timestamp_desc", "rating_asc", "rating_desc" -> normalized;
+			default -> DEFAULT_SORT_OPTION;
+		};
+	}
+
+	/**
+	 * Builds a comparator for the log list based on the selected sort option.
+	 * We use null-safe comparators so logs with missing values are always shown last.
+	 */
+	private static Comparator<LogEntry> buildLogComparator(String sortOption) {
+		Comparator<Integer> ratingAsc = Comparator.nullsLast(Comparator.naturalOrder());
+		Comparator<Integer> ratingDesc = Comparator.nullsLast(Comparator.reverseOrder());
+		Comparator<Long> idAsc = Comparator.nullsLast(Comparator.naturalOrder());
+		Comparator<Long> idDesc = Comparator.nullsLast(Comparator.reverseOrder());
+		Comparator<java.time.LocalDateTime> timeAsc = Comparator.nullsLast(Comparator.naturalOrder());
+		Comparator<java.time.LocalDateTime> timeDesc = Comparator.nullsLast(Comparator.reverseOrder());
+
+		return switch (sortOption) {
+			case "timestamp_asc" -> Comparator
+					.comparing(LogEntry::getTimestamp, timeAsc)
+					.thenComparing(LogEntry::getId, idAsc);
+			case "rating_desc" -> Comparator
+					.comparing(LogEntry::getStarRating, ratingDesc)
+					.thenComparing(LogEntry::getTimestamp, timeDesc)
+					.thenComparing(LogEntry::getId, idDesc);
+			case "rating_asc" -> Comparator
+					.comparing(LogEntry::getStarRating, ratingAsc)
+					.thenComparing(LogEntry::getTimestamp, timeDesc)
+					.thenComparing(LogEntry::getId, idDesc);
+			default -> Comparator
+					.comparing(LogEntry::getTimestamp, timeDesc)
+					.thenComparing(LogEntry::getId, idDesc);
+		};
+	}
+
 	// Log Deletion
 	@PostMapping("/delete/{id}")
 	@Transactional // Deletion requires a transaction
-	public String deleteLogEntry(@PathVariable Long id, HttpSession session) {
+	public String deleteLogEntry(
+			@PathVariable Long id,
+			@RequestParam(value = "userNameFilter", required = false) String userNameFilter,
+			@RequestParam(value = "sortOption", required = false) String sortOption,
+			HttpSession session,
+			RedirectAttributes redirectAttributes
+	) {
 
 		// Simple Security Check (Prevent unauthorized access)
 		if (session.getAttribute("isAdmin") == null) {
@@ -115,6 +179,13 @@ public class AdminController {
 			// Log the error but continue to redirect
 			System.err.println("Error deleting log entry with ID " + id + ": " + e.getMessage());
 		}
+
+		// Keep current filter/sort values after deletion (better admin experience).
+		if (userNameFilter != null && !userNameFilter.isBlank()) {
+			redirectAttributes.addAttribute("userNameFilter", userNameFilter.trim());
+		}
+		String resolvedSortOption = resolveSortOption(sortOption);
+		redirectAttributes.addAttribute("sortOption", resolvedSortOption);
 
 		// Redirect back to the logs page after deletion to show the updated list
 		return "redirect:/admin/logs";

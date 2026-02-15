@@ -408,7 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const timeLimitInput     = document.getElementById('timeLimit');
     const mcCheckboxInput    = document.getElementById('mcCheckbox');
     const mcSamplesInput     = document.getElementById('samples');
 
@@ -861,7 +860,6 @@ document.addEventListener('DOMContentLoaded', () => {
             columns: cols,
             manualData: manualData,
             fds: fdsPayloadString,
-            timeLimit: parseInt(timeLimitInput?.value || '30', 10),
             monteCarlo: globalMonteCarlo,
             samples: globalMonteCarlo ? Math.max(globalSamples, 1) : 0
         };
@@ -2756,7 +2754,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     columns: [],
                     manualData: manualDataFallback,
                     fds: projFds.join(';'),
-                    timeLimit: parseInt(timeLimitInput?.value || '30', 10),
                     monteCarlo: globalMonteCarloFlag,
                     samples: globalMonteCarloFlag ? globalSamplesVal : 0
                 });
@@ -2771,7 +2768,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 manualData,
                 baseColumns,
                 fds: projFds.join(';'),
-                timeLimit: parseInt(timeLimitInput?.value || '30', 10),
                 monteCarlo: globalMonteCarloFlag,
                 samples: globalMonteCarloFlag ? globalSamplesVal : 0
             });
@@ -2828,57 +2824,222 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         }
 
-        let progressListEl = null;
+        // Timeline-based progress modal (similar to calc.html, "Computation Status")
+        const progressSteps = [];
+        let timerInterval = null;
+        const streamStartedAt = performance.now();
         let progressOpen = false;
-        const pendingProgressMessages = [];
 
-        const ensureProgressModal = () => {
-            if (progressOpen) return;
-            progressOpen = true;
-            Swal.fire({
-                icon: 'info',
-                title: 'Normalization Progress',
-                html: '<div class="normalization-progress"><ul class="progress-log"></ul></div>',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: () => {
-                    const container = Swal.getHtmlContainer();
-                    progressListEl = container?.querySelector('.progress-log');
-                    if (!progressListEl) {
-                        progressListEl = document.createElement('ul');
-                        progressListEl.classList.add('progress-log');
-                        container?.appendChild(progressListEl);
-                    }
-                    Swal.showLoading();
-                    if (pendingProgressMessages.length > 0) {
-                        const buffered = pendingProgressMessages.splice(0, pendingProgressMessages.length);
-                        buffered.forEach(({ message, type }) => {
-                            renderProgress(message, type);
-                        });
-                    }
+        // Format elapsed time in a readable format
+        const formatElapsedTime = (ms) => {
+            const safeMs = Number.isFinite(ms) ? Math.max(0, Math.round(ms)) : 0;
+            if (safeMs < 1000) {
+                return `${safeMs} ms`;
+            }
+            // Keep millisecond-accurate value visible even for long durations.
+            const seconds = (safeMs / 1000).toFixed(3);
+            return `${safeMs} ms (${seconds} s)`;
+        };
+
+        // Build professional timeline HTML with steps and status
+        const buildTimelineHtml = (steps, status = 'running', backendElapsedMs = null) => {
+            // On success, backend elapsed time is used so the value matches server-side step durations.
+            const elapsedMs = (status === 'success' && Number.isFinite(backendElapsedMs))
+                ? Math.max(0, backendElapsedMs)
+                : (performance.now() - streamStartedAt);
+            const elapsedFormatted = formatElapsedTime(elapsedMs);
+
+            // Build timeline steps with visual indicators
+            const stepsHtml = steps.map((step, index) => {
+                const isLast = index === steps.length - 1;
+                const stepStatus = isLast && status === 'running' ? 'active' : 'completed';
+                const dotContent = stepStatus === 'completed'
+                    ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                    : (index + 1);
+                const badgeHtml = stepStatus === 'active'
+                    ? '<span class="live-status-badge live-status-badge--running">In Progress</span>'
+                    : '<span class="live-status-badge live-status-badge--completed">Completed</span>';
+
+                return `
+                    <div class="live-status-step ${stepStatus}" role="listitem" aria-current="${stepStatus === 'active' ? 'step' : 'false'}">
+                        <div class="live-status-step-dot" aria-hidden="true">${dotContent}</div>
+                        <div class="live-status-step-content">
+                            <span class="live-status-step-text">${step}</span>
+                            ${badgeHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Animation or success icon based on status
+            const animationHtml = status === 'running'
+                ? '<div id="normalization-loading-animation" class="live-status-animation"></div>'
+                : `<div class="live-status-icon live-status-icon--success">
+                        <svg class="live-status-checkmark" viewBox="0 0 24 24">
+                            <path d="M4 12l5 5L20 6"/>
+                        </svg>
+                   </div>`;
+
+            const statusTitle = status === 'running'
+                ? 'Processing...'
+                : 'Normalization Complete!';
+
+            const statusNote = status === 'running'
+                ? 'Computing RIC values and validating decomposition properties.'
+                : 'All computations have been successfully completed.';
+
+            return `
+                <div class="live-status-wrapper" role="region" aria-label="Normalization Progress" aria-live="polite">
+                    <div class="live-status-header">
+                        ${animationHtml}
+                        <div class="live-status-header-info">
+                            <h3 class="live-status-title">${statusTitle}</h3>
+                            <div class="live-status-timer" aria-label="Elapsed time">
+                                <svg class="live-status-timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                                <span>Elapsed:</span>
+                                <span class="live-status-timer-value" id="normalization-elapsed-timer">${elapsedFormatted}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="live-status-note">${statusNote}</p>
+                    <div class="live-status-timeline" role="list" aria-label="Normalization steps">
+                        ${stepsHtml || '<div class="live-status-step active"><div class="live-status-step-dot">1</div><div class="live-status-step-content"><span class="live-status-step-text">Initializing normalization...</span><span class="live-status-badge live-status-badge--running">Starting</span></div></div>'}
+                    </div>
+                </div>
+            `;
+        };
+
+        // Initialize the pulsing dots loading animation
+        const initLoadingAnimation = () => {
+            const container = document.getElementById('normalization-loading-animation');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="live-status-dots">
+                    <div class="live-status-dot"></div>
+                    <div class="live-status-dot"></div>
+                    <div class="live-status-dot"></div>
+                </div>
+            `;
+        };
+
+        // Start the elapsed time counter
+        const startTimer = () => {
+            timerInterval = setInterval(() => {
+                const timerEl = document.getElementById('normalization-elapsed-timer');
+                if (timerEl) {
+                    const elapsedMs = performance.now() - streamStartedAt;
+                    timerEl.textContent = formatElapsedTime(elapsedMs);
                 }
-            });
+            }, 50);
         };
 
-        const renderProgress = (message, type = 'progress') => {
-            if (!progressListEl) return;
-            const li = document.createElement('li');
-            li.textContent = message;
-            if (type === 'error') li.classList.add('progress-error');
-            if (type === 'done') li.classList.add('progress-done');
-            progressListEl.appendChild(li);
-            progressListEl.scrollTop = progressListEl.scrollHeight;
+        // Stop the elapsed time counter
+        const stopTimer = () => {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
         };
 
+        // Add celebration particles on successful completion
+        const addCelebrationParticles = (container) => {
+            const celebration = document.createElement('div');
+            celebration.className = 'live-status-celebration';
+            container.style.position = 'relative';
+            container.appendChild(celebration);
+
+            const colors = ['#6366f1', '#22d3ee', '#34d399', '#f59e0b', '#ec4899'];
+            const particleCount = 20;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'celebration-particle';
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.left = '50%';
+                particle.style.top = '30%';
+                const angle = (Math.random() * 360) * (Math.PI / 180);
+                const distance = 50 + Math.random() * 80;
+                particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+                particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+                particle.style.animationDelay = `${Math.random() * 0.3}s`;
+                celebration.appendChild(particle);
+            }
+            setTimeout(() => celebration.remove(), 1500);
+        };
+
+        // Render or update the progress modal
+        const renderModal = (status = 'running') => {
+            const html = buildTimelineHtml(progressSteps, status);
+
+            if (!Swal.isVisible()) {
+                progressOpen = true;
+                Swal.fire({
+                    title: 'Normalization Progress',
+                    html: html,
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    customClass: {
+                        popup: 'computation-modal',
+                        title: 'computation-modal-title',
+                        htmlContainer: 'computation-modal-content'
+                    },
+                    didOpen: () => {
+                        initLoadingAnimation();
+                        startTimer();
+                        const timeline = Swal.getHtmlContainer()?.querySelector('.live-status-timeline');
+                        if (timeline) timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'smooth' });
+                    }
+                });
+            } else {
+                Swal.update({ html });
+                if (status === 'running') {
+                    setTimeout(() => initLoadingAnimation(), 10);
+                }
+                const timeline = Swal.getHtmlContainer()?.querySelector('.live-status-timeline');
+                if (timeline) timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'smooth' });
+            }
+        };
+
+        // Append a new progress step to the timeline
         const appendProgress = (message, type = 'progress') => {
             if (!message) return;
-            ensureProgressModal();
-            if (!progressListEl) {
-                pendingProgressMessages.push({ message, type });
-                return;
-            }
-            renderProgress(message, type);
+            progressSteps.push(message);
+            renderModal('running');
+        };
+
+        // Show the completion modal with Continue button
+        const showCompletion = (callback, backendElapsedMs = null) => {
+            stopTimer();
+            const completionHtml = buildTimelineHtml(progressSteps, 'success', backendElapsedMs);
+
+            Swal.fire({
+                title: 'Normalization Progress',
+                html: completionHtml,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: true,
+                confirmButtonText: 'Continue',
+                focusConfirm: true,
+                customClass: {
+                    popup: 'computation-modal',
+                    title: 'computation-modal-title',
+                    htmlContainer: 'computation-modal-content',
+                    confirmButton: 'computation-modal-confirm'
+                },
+                didOpen: () => {
+                    const timeline = Swal.getHtmlContainer()?.querySelector('.live-status-timeline');
+                    if (timeline) timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'smooth' });
+                    const wrapper = Swal.getHtmlContainer()?.querySelector('.live-status-wrapper');
+                    if (wrapper) addCelebrationParticles(wrapper);
+                }
+            }).then(() => {
+                progressOpen = false;
+                callback();
+            });
         };
 
         const parseSseData = (evt) => {
@@ -2889,31 +3050,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const result = await new Promise((resolve, reject) => {
             let streamClosed = false;
-            let awaitingUserConfirm = false;
             let pendingPayload = null;
 
             const finalize = (payload, error) => {
-                if (streamClosed && awaitingUserConfirm) {
-                    // kullanıcı onayı beklerken finalize çağrılmışsa akışı tamamla
-                    awaitingUserConfirm = false;
+                stopTimer();
+                if (error) {
+                    if (progressOpen) {
+                        Swal.close();
+                        progressOpen = false;
+                    }
+                    reject(error);
+                } else {
+                    resolve(payload);
                 }
-                if (progressOpen) {
-                    Swal.close();
-                    progressOpen = false;
-                    progressListEl = null;
-                }
-                if (error) reject(error);
-                else resolve(payload);
             };
 
             const source = new EventSource(`/normalize/decompose-stream?token=${encodeURIComponent(token)}`);
 
             source.addEventListener('progress', (evt) => {
                 const data = parseSseData(evt);
-                // In no-plaque mode, skip showing computation progress messages
+                // In no-plaque mode, still show modal but skip detailed progress messages
                 if (window.plaqueMode === 'disabled') {
-                    // Still ensure modal is open but don't show progress messages
-                    ensureProgressModal();
+                    if (!progressOpen) renderModal('running');
                     return;
                 }
                 appendProgress(data.message || 'Working...');
@@ -2929,41 +3087,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             source.addEventListener('complete', (evt) => {
                 const data = parseSseData(evt);
-                appendProgress('Normalization completed.', 'done');
+                // Keep a clear final step, especially useful in no-plaque mode.
+                appendProgress('Normalization completed.');
                 pendingPayload = data?.payload ?? null;
-                awaitingUserConfirm = true;
+                const rawElapsedMs = Number(data?.elapsedMs);
+                const backendElapsedMs = Number.isFinite(rawElapsedMs) ? rawElapsedMs : null;
 
-                source.close();        // SSE bağlantısını hemen kapat
+                source.close();
                 streamClosed = true;
 
-                Swal.hideLoading();
-
-                const actions = Swal.getActions();
-                if (actions) {
-                    actions.style.display = 'flex';
-                    actions.style.justifyContent = 'center';
-                }
-
-                const confirmBtn = Swal.getConfirmButton();
-                const handleConfirm = () => {
-                    confirmBtn.removeEventListener('click', handleConfirm);
-                    awaitingUserConfirm = false;
+                // Show completion modal with Continue button
+                showCompletion(() => {
                     finalize(pendingPayload, null);
-                };
-                if (confirmBtn) {
-                    confirmBtn.style.display = 'inline-block';
-                    confirmBtn.textContent = 'Continue';
-                    confirmBtn.disabled = false;
-                    confirmBtn.addEventListener('click', handleConfirm);
-                }
-                else {
-                    awaitingUserConfirm = false;
-                    finalize(pendingPayload, null);
-                }
+                }, backendElapsedMs);
             });
 
             source.onerror = () => {
-                if (streamClosed || awaitingUserConfirm) return;
+                if (streamClosed) return;
                 appendProgress('Connection lost.', 'error');
                 source.close();
                 streamClosed = true;

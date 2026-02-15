@@ -11,7 +11,6 @@ public class DecomposeAllRequest {
 	// optional global flags
 	private boolean losslessJoin;
 	private boolean dependencyPreserve;
-	private int timeLimit;
 	private boolean monteCarlo;
 	private int samples;
 	private String manualData;
@@ -32,9 +31,6 @@ public class DecomposeAllRequest {
 
 	public boolean isDependencyPreserve() { return dependencyPreserve; }
 	public void setDependencyPreserve(boolean dependencyPreserve) { this.dependencyPreserve = dependencyPreserve; }
-
-	public int getTimeLimit() { return timeLimit; }
-	public void setTimeLimit(int timeLimit) { this.timeLimit = timeLimit; }
 
 	public boolean isMonteCarlo() { return monteCarlo; }
 	public void setMonteCarlo(boolean monteCarlo) { this.monteCarlo = monteCarlo; }

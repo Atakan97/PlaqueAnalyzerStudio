@@ -3,6 +3,9 @@
     --pair-accent: #6366f1;
     --pair-accent-glow: rgba(99, 102, 241, 0.35);
     --orig-pair-shadow: rgba(99, 102, 241, 0.25);
+    /* Celebration particle animation variables (set dynamically via JS) */
+    --tx: 0px;
+    --ty: 0px;
 }
 
 /* Basic font and coloring scheme for the entire page */
@@ -20,58 +23,412 @@ body {
     align-items: center;
     min-height: 100vh;
 }
-/* Live computation status modal */
+/* Live Computation Status */
+/* Main wrapper */
 .live-status-wrapper {
     display: flex;
-    align-items: flex-start;
-    gap: 18px;
-    margin-top: 10px;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 8px 0;
+    min-width: 380px;
 }
 
-.live-status-spinner {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    border: 4px solid rgba(100, 116, 139, 0.25);
-    border-top-color: #3b82f6;
-    animation: live-status-spin 0.8s linear infinite;
+/* Header section with animation and timer */
+.live-status-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* CSS 3 Dots Loading Animation */
+.live-status-animation {
+    width: 64px;
+    height: 64px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-@keyframes live-status-spin {
-    to {
-        transform: rotate(360deg);
+.live-status-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.live-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6366f1;
+    animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+.live-status-dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.live-status-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.live-status-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes dot-pulse {
+    0%, 60%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    30% {
+        transform: scale(0.7);
+        opacity: 0.5;
     }
 }
+
+/* Header info section */
+.live-status-header-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+}
+
+.live-status-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* Elapsed timer */
+.live-status-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+}
+
+.live-status-timer-icon {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+}
+
+.live-status-timer-value {
+    font-weight: 500;
+    color: #475569;
+}
+
+/* Success icon (animated checkmark) */
 .live-status-icon {
-    width: 42px;
-    height: 42px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 1.3rem;
-    color: #0f5132;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .live-status-icon--success {
-    background: #d1fae5;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
     border: 2px solid #34d399;
+    animation: success-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.live-status-icon--success::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: rgba(52, 211, 153, 0.2);
+    animation: success-ring 0.6s ease-out forwards;
+}
+
+.live-status-checkmark {
+    width: 28px;
+    height: 28px;
+    stroke: #047857;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+}
+
+.live-status-checkmark path {
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: checkmark-draw 0.4s ease-out 0.2s forwards;
+}
+
+@keyframes success-pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes success-ring {
+    0% { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+
+@keyframes checkmark-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+/* Status note/message */
+.live-status-note {
+    margin: 0;
+    padding: 0 4px;
+    color: #475569;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
+/* Timeline container */
+.live-status-timeline {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 4px 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+}
+
+.live-status-timeline::-webkit-scrollbar {
+    width: 6px;
+}
+
+.live-status-timeline::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.live-status-timeline::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 3px;
+}
+
+/* Timeline step item */
+.live-status-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    position: relative;
+    animation: step-fade-in 0.3s ease-out;
+}
+
+@keyframes step-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Timeline connector line */
+.live-status-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 23px;
+    top: 32px;
+    bottom: -2px;
+    width: 2px;
+    background: linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 100%);
+}
+
+.live-status-step.completed:not(:last-child)::after {
+    background: linear-gradient(180deg, #34d399 0%, #6ee7b7 100%);
+}
+
+/* Step indicator dot */
+.live-status-step-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    z-index: 1;
+    transition: all 0.3s ease;
+}
+
+.live-status-step.completed .live-status-step-dot {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.live-status-step.active .live-status-step-dot {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.live-status-step.pending .live-status-step-dot {
+    background: #e2e8f0;
+    color: #94a3b8;
+    border: 2px solid #cbd5e1;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4); }
+    50% { box-shadow: 0 2px 16px rgba(99, 102, 241, 0.6); }
+}
+
+/* Step content */
+.live-status-step-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 2px;
+}
+
+.live-status-step-text {
+    font-size: 0.9rem;
+    color: #334155;
+    line-height: 1.4;
+}
+
+.live-status-step.completed .live-status-step-text {
     color: #047857;
 }
 
-.live-status-content {
-    flex: 1;
-    text-align: left;
-}
-
-.live-status-note {
-    margin: 0 0 12px;
-    color: #1e293b;
+.live-status-step.active .live-status-step-text {
+    color: #4f46e5;
     font-weight: 500;
 }
 
+/* Step badge */
+.live-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    width: fit-content;
+}
+
+.live-status-badge--completed {
+    background: #d1fae5;
+    color: #047857;
+}
+
+.live-status-badge--running {
+    background: #e0e7ff;
+    color: #4338ca;
+    animation: badge-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Completion celebration particles */
+.live-status-celebration {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.celebration-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: particle-burst 0.8s ease-out forwards;
+}
+
+@keyframes particle-burst {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--tx), var(--ty)) scale(1);
+        opacity: 0;
+    }
+}
+
+/* SweetAlert2 custom classes for computation modal */
+.swal2-popup.computation-modal {
+    border-radius: 20px;
+    padding: 28px 24px;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.15), 0 10px 20px rgba(15, 23, 42, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.swal2-popup.computation-modal .swal2-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #0f172a;
+    padding-bottom: 8px;
+    border-bottom: 2px solid transparent;
+    background: linear-gradient(#fff, #fff) padding-box,
+                linear-gradient(90deg, #6366f1, #22d3ee) border-box;
+    background-clip: padding-box, border-box;
+    margin-bottom: 16px;
+}
+
+.swal2-popup.computation-modal .swal2-html-container {
+    margin: 0;
+    padding: 0;
+}
+
+.swal2-popup.computation-modal .swal2-confirm {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 28px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    transition: all 0.2s ease;
+}
+
+.swal2-popup.computation-modal .swal2-confirm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+}
+
+.swal2-popup.computation-modal .swal2-confirm:active {
+    transform: translateY(0);
+}
+
+/* Legacy support - keep old class working */
 .live-status-log {
     margin: 0;
     padding-left: 20px;

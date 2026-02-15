@@ -110,10 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteCell.innerHTML = `<button type="button" class="delManualRow">×</button>`;
     }
 
-    /**
-     * Removes all manual data rows, resets the hidden payload and inserts one
-     * blank row so the table remains editable after the clear action.
-     */
+     // Removes all manual data rows, inserts one blank row
     function clearManualDataTable() {
         if (!manualDataTable) return;
         const tbody = manualDataTable.querySelector('tbody');
@@ -125,10 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         syncManualDataFromTable();
     }
 
-    /**
-     * Clears the FD grid as well as the hidden input so the form submission
-     * reflects the visible empty state.
-     */
+     // Clears the FD grid
     function clearFunctionalDependencies() {
         resetFdTable();
         const fdInput = document.getElementById('fdsInput');
@@ -236,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = evt => {
                 const text = evt.target.result;
-                // Use delimiter auto-detection to support both CSV (comma) and TSV (tab) files
+                // Use delimiter auto-detection to support CSV files
                 const parsed = Papa.parse(text, {
                     skipEmptyLines: true,
                     delimiter: "",  // Empty string triggers auto-detection
@@ -475,68 +469,199 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // WITH-PLAQUE mode: Show live computation status modal
-        let swalInstance;
-        const progressItems = [];
-        let lastProgressAt = performance.now();
+        const progressSteps = [];
+        let timerInterval = null;
         const streamStartedAt = performance.now();
+        let lastProgressAt = performance.now();
         const MIN_PROGRESS_MS = 1200;
         const MIN_AFTER_LAST_PROGRESS_MS = 600;
 
-        const buildProgressHtml = (noteText, status = 'running') => {
-            const listItems = progressItems.map(item => `<li>${item}</li>`).join('');
-            const iconHtml = status === 'running'
-                ? '<div class="live-status-spinner"></div>'
-                : '<div class="live-status-icon live-status-icon--success">✓</div>';
+        // Format elapsed time
+        const formatElapsedTime = (ms) => {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            const milliseconds = Math.floor((ms % 1000) / 10);
+            if (minutes > 0) {
+                return `${minutes}m ${remainingSeconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}s`;
+            }
+            return `${remainingSeconds}.${milliseconds.toString().padStart(2, '0')}s`;
+        };
+
+        // Build professional timeline HTML
+        // backendElapsedMs: If provided (from complete event), use this for final elapsed time display
+        const buildTimelineHtml = (steps, status = 'running', backendElapsedMs = null) => {
+            // Use backend elapsed time for completion, frontend time for running status
+            const elapsedMs = (status === 'success' && backendElapsedMs !== null)
+                ? backendElapsedMs
+                : (performance.now() - streamStartedAt);
+            const elapsedFormatted = formatElapsedTime(elapsedMs);
+
+            // Build timeline steps
+            const stepsHtml = steps.map((step, index) => {
+                const isLast = index === steps.length - 1;
+                const stepStatus = isLast && status === 'running' ? 'active' : 'completed';
+                const dotContent = stepStatus === 'completed'
+                    ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                    : (index + 1);
+                const badgeHtml = stepStatus === 'active'
+                    ? '<span class="live-status-badge live-status-badge--running">In Progress</span>'
+                    : '<span class="live-status-badge live-status-badge--completed">Completed</span>';
+
+                return `
+                    <div class="live-status-step ${stepStatus}" role="listitem" aria-current="${stepStatus === 'active' ? 'step' : 'false'}">
+                        <div class="live-status-step-dot" aria-hidden="true">${dotContent}</div>
+                        <div class="live-status-step-content">
+                            <span class="live-status-step-text">${step}</span>
+                            ${badgeHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Animation container
+            const animationHtml = status === 'running'
+                ? '<div id="loading-animation" class="live-status-animation"></div>'
+                : `<div class="live-status-icon live-status-icon--success">
+                        <svg class="live-status-checkmark" viewBox="0 0 24 24">
+                            <path d="M4 12l5 5L20 6"/>
+                        </svg>
+                   </div>`;
+
+            const statusTitle = status === 'running'
+                ? 'Computing...'
+                : 'Computation Complete!';
+
+            const statusNote = status === 'running'
+                ? 'Processing the data. Please wait while the computation is being performed.'
+                : 'All computations have been successfully completed. Click the button below to view your results.';
+
             return `
-                <div class="live-status-wrapper">
-                    ${iconHtml}
-                    <div class="live-status-content">
-                        <p class="live-status-note">${noteText}</p>
-                        <ul class="live-status-log">${listItems}</ul>
+                <div class="live-status-wrapper" role="region" aria-label="Computation Progress" aria-live="polite">
+                    <div class="live-status-header">
+                        ${animationHtml}
+                        <div class="live-status-header-info">
+                            <h3 class="live-status-title">${statusTitle}</h3>
+                            <div class="live-status-timer" aria-label="Elapsed time">
+                                <svg class="live-status-timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                                <span>Elapsed:</span>
+                                <span class="live-status-timer-value" id="elapsed-timer">${elapsedFormatted}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="live-status-note">${statusNote}</p>
+                    <div class="live-status-timeline" role="list" aria-label="Computation steps">
+                        ${stepsHtml || '<div class="live-status-step active"><div class="live-status-step-dot">1</div><div class="live-status-step-content"><span class="live-status-step-text">Initializing computation...</span><span class="live-status-badge live-status-badge--running">Starting</span></div></div>'}
                     </div>
                 </div>
             `;
         };
 
-        const renderModal = (title, htmlContent) => {
-            const result = Swal.fire({
-                title,
-                html: htmlContent,
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: () => {
-                    Swal.getHtmlContainer().querySelector('.live-status-log')?.scrollTo({ top: 999999, behavior: 'smooth' });
-                }
-            });
-            swalInstance = result;
+        // Initialize loading animation
+        const initLoadingAnimation = () => {
+            const container = document.getElementById('loading-animation');
+            if (!container) return;
+
+            // Inject 3 pulsing dots animation
+            container.innerHTML = `
+                <div class="live-status-dots">
+                    <div class="live-status-dot"></div>
+                    <div class="live-status-dot"></div>
+                    <div class="live-status-dot"></div>
+                </div>
+            `;
         };
 
-        const updateModal = () => {
-            const html = buildProgressHtml('Calculation is running. After the calculations are completed, results page can be directed.', 'running');
-            if (!Swal.isVisible()) {
-                renderModal('Computation Status', html);
-            } else {
-                Swal.update({ html });
-                Swal.getHtmlContainer().querySelector('.live-status-log')?.scrollTo({ top: 999999, behavior: 'smooth' });
+        // Start elapsed timer update
+        const startTimer = () => {
+            timerInterval = setInterval(() => {
+                const timerEl = document.getElementById('elapsed-timer');
+                if (timerEl) {
+                    const elapsedMs = performance.now() - streamStartedAt;
+                    timerEl.textContent = formatElapsedTime(elapsedMs);
+                }
+            }, 50); // Update every 50ms for smooth display
+        };
+
+        // Stop timer
+        const stopTimer = () => {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
             }
         };
 
-        const appendStatus = (message) => {
-            if (!message) return;
-            progressItems.push(message);
-            lastProgressAt = performance.now();
-            updateModal();
+        // Render modal with custom SweetAlert2 classes
+        const renderModal = (status = 'running') => {
+            const html = buildTimelineHtml(progressSteps, status);
+
+            if (!Swal.isVisible()) {
+                Swal.fire({
+                    title: 'Computation Status',
+                    html: html,
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    customClass: {
+                        popup: 'computation-modal',
+                        title: 'computation-modal-title',
+                        htmlContainer: 'computation-modal-content'
+                    },
+                    didOpen: () => {
+                        initLoadingAnimation();
+                        startTimer();
+                        // Scroll timeline to bottom
+                        const timeline = Swal.getHtmlContainer()?.querySelector('.live-status-timeline');
+                        if (timeline) timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'smooth' });
+                    }
+                });
+            } else {
+                Swal.update({ html });
+                // Re-init animation after update if still running
+                if (status === 'running') {
+                    setTimeout(() => initLoadingAnimation(), 10);
+                }
+                // Scroll timeline to bottom
+                const timeline = Swal.getHtmlContainer()?.querySelector('.live-status-timeline');
+                if (timeline) timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'smooth' });
+            }
         };
 
-        const showCompletion = (redirectUrl) => {
+        // Append new status step
+        const appendStatus = (message) => {
+            if (!message) return;
+            progressSteps.push(message);
+            lastProgressAt = performance.now();
+            renderModal('running');
+        };
+
+        // Show completion modal with celebration
+        const showCompletion = (redirectUrl, backendElapsedMs = null) => {
+            // Stop timer immediately to prevent flickering
+            stopTimer();
+
+            // Immediately update the timer display with backend time if available
+            if (backendElapsedMs !== null) {
+                const timerEl = document.getElementById('elapsed-timer');
+                if (timerEl) {
+                    timerEl.textContent = formatElapsedTime(backendElapsedMs);
+                }
+            }
+
             const elapsed = performance.now() - streamStartedAt;
             const sinceLastProgress = performance.now() - lastProgressAt;
             const basicWait = Math.max(MIN_PROGRESS_MS - elapsed, 0);
             const afterProgressWait = Math.max(MIN_AFTER_LAST_PROGRESS_MS - sinceLastProgress, 0);
             const waitMs = Math.max(basicWait, afterProgressWait);
+
             setTimeout(() => {
-                const completionHtml = buildProgressHtml('Computation completed. The calculation steps can be examined below, by clicking the "Show Results" button page will be directed to the calculation results.', 'success');
+
+                // Use backend elapsed time if available, otherwise use frontend time
+                const completionHtml = buildTimelineHtml(progressSteps, 'success', backendElapsedMs);
+
                 Swal.fire({
                     title: 'Computation Status',
                     html: completionHtml,
@@ -545,13 +670,58 @@ document.addEventListener('DOMContentLoaded', function() {
                     showConfirmButton: true,
                     confirmButtonText: 'Show Results',
                     focusConfirm: true,
+                    customClass: {
+                        popup: 'computation-modal',
+                        title: 'computation-modal-title',
+                        htmlContainer: 'computation-modal-content',
+                        confirmButton: 'computation-modal-confirm'
+                    },
                     didOpen: () => {
-                        Swal.getHtmlContainer().querySelector('.live-status-log')?.scrollTo({ top: 999999, behavior: 'smooth' });
+                        // Scroll timeline to bottom to show all completed steps
+                        const timeline = Swal.getHtmlContainer()?.querySelector('.live-status-timeline');
+                        if (timeline) timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'smooth' });
+
+                        // Add celebration particles
+                        const wrapper = Swal.getHtmlContainer()?.querySelector('.live-status-wrapper');
+                        if (wrapper) {
+                            addCelebrationParticles(wrapper);
+                        }
                     }
                 }).then(() => {
                     window.location.href = redirectUrl;
                 });
             }, waitMs);
+        };
+
+        // Add celebration particles on completion
+        const addCelebrationParticles = (container) => {
+            const celebration = document.createElement('div');
+            celebration.className = 'live-status-celebration';
+            container.style.position = 'relative';
+            container.appendChild(celebration);
+
+            const colors = ['#6366f1', '#22d3ee', '#34d399', '#f59e0b', '#ec4899'];
+            const particleCount = 20;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'celebration-particle';
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.left = '50%';
+                particle.style.top = '30%';
+
+                // Random direction
+                const angle = (Math.random() * 360) * (Math.PI / 180);
+                const distance = 50 + Math.random() * 80;
+                particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+                particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+                particle.style.animationDelay = `${Math.random() * 0.3}s`;
+
+                celebration.appendChild(particle);
+            }
+
+            // Clean up particles after animation
+            setTimeout(() => celebration.remove(), 1500);
         };
 
         // Build init params and request a short-lived token to avoid huge EventSource URLs
@@ -578,8 +748,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const source = new EventSource(`/compute/stream?token=${encodeURIComponent(token)}`);
 
             source.onopen = () => {
-                // Connection opened
+                // Connection opened - already showing initialization step
             };
+
             source.addEventListener('progress', event => {
                 try {
                     const payload = JSON.parse(event.data);
@@ -599,10 +770,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     data = {};
                 }
                 const redirectUrl = data && data.redirectUrl ? data.redirectUrl : '/calc-results';
-                showCompletion(redirectUrl);
+                const backendElapsedMs = data && data.elapsedMs ? data.elapsedMs : null;
+                showCompletion(redirectUrl, backendElapsedMs);
             });
 
             source.addEventListener('error', event => {
+                stopTimer();
+
                 let message = 'Unexpected error during computation.';
                 try {
                     const payload = JSON.parse(event.data);
@@ -610,21 +784,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (err) {
                     if (event.data) message = event.data;
                 }
-                if (Swal.isVisible()) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Computation failed',
-                        text: message,
-                        confirmButtonText: 'Close'
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Computation failed',
-                        text: message,
-                        confirmButtonText: 'Close'
-                    });
-                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Computation Failed',
+                    text: message,
+                    confirmButtonText: 'Close',
+                    customClass: {
+                        popup: 'computation-modal'
+                    }
+                });
                 if (computeBtn) computeBtn.disabled = false;
                 source.close();
             });
@@ -633,27 +802,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Only show error if not already closed by complete event
                 if (source.readyState === EventSource.CLOSED) {
                     // Check if we should ignore this (might be expected after complete)
-                    if (Swal.isVisible() && progressItems.some(item => item.includes('Completed'))) {
+                    if (Swal.isVisible() && progressSteps.some(item => item.toLowerCase().includes('completed'))) {
                         return;
                     }
                 }
 
+                stopTimer();
+
                 Swal.fire({
                     icon: 'error',
-                    title: 'Connection lost',
+                    title: 'Connection Lost',
                     text: 'Connection lost while receiving computation updates. Please check if the server is running.',
-                    confirmButtonText: 'Close'
+                    confirmButtonText: 'Close',
+                    customClass: {
+                        popup: 'computation-modal'
+                    }
                 });
                 if (computeBtn) computeBtn.disabled = false;
                 source.close();
             };
         })
         .catch(err => {
+            stopTimer();
+
             Swal.fire({
                 icon: 'error',
-                title: 'Initialization failed',
+                title: 'Initialization Failed',
                 text: err && err.message ? err.message : 'Unable to start computation.',
-                confirmButtonText: 'Close'
+                confirmButtonText: 'Close',
+                customClass: {
+                    popup: 'computation-modal'
+                }
             });
             if (computeBtn) computeBtn.disabled = false;
         });

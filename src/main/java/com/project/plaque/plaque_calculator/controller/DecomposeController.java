@@ -21,6 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 @RequestMapping("/normalize")
@@ -108,8 +109,13 @@ public class DecomposeController {
 		return ResponseEntity.ok(response);
 	}
 
+	/**
+	 * Streams decomposition progress to the client with SSE (Server-Sent Events).
+	 * This method processes each decomposed table individually and then performs
+	 * a final global validation pass. Progress updates are emitted at each step
+	 * so the user can see real-time feedback.
+	 */
 	private void streamDecomposition(DecomposeAllRequest req, HttpSession session, SseEmitter emitter) {
-		long overallStartNs = System.nanoTime();
 		try {
 			var tables = req.getTables();
 			if (tables == null || tables.isEmpty()) {
@@ -120,8 +126,11 @@ public class DecomposeController {
 			String computationId = req.getComputationId();
 			recordNormalizationAttemptsAndStartTime(session, computationId);
 			AtomicInteger index = new AtomicInteger(1);
+			AtomicLong totalElapsedMs = new AtomicLong(0L);
+
+			// Process each decomposed table individually with progress updates
 			tables.forEach(table -> {
-				// propagate computationId to per-table requests so DecomposeService can resolve session keys
+				// Propagate computationId to per-table requests so DecomposeService can resolve session keys
 				if (computationId != null && (table.getComputationId() == null || table.getComputationId().isBlank())) {
 					table.setComputationId(computationId);
 				}
@@ -131,9 +140,14 @@ public class DecomposeController {
 				long startNs = System.nanoTime();
 				try {
 					emitProgress(emitter, label + ": Starting computations.");
-					decomposeService.decomposeWithProgress(table, session, message -> emitProgress(emitter, message), label);
-					long elapsedMs = Math.max(0, (System.nanoTime() - startNs) / 1_000_000);
-					emitProgress(emitter, label + ": Completed in " + formatDuration(elapsedMs) + ".");
+					// We stream one table summary line to avoid duplicated completion messages.
+					DecomposeResponse tableResponse = decomposeService.decomposeWithProgress(table, session, null, label);
+					long tableRicElapsedMs = resolveRicElapsedMs(tableResponse, startNs);
+					totalElapsedMs.addAndGet(tableRicElapsedMs);
+
+					String strategy = tableResponse != null ? tableResponse.getRicStrategy() : null;
+					String strategyPart = (strategy == null || strategy.isBlank()) ? "" : (" " + strategy.trim());
+					emitProgress(emitter, label + ": Computed" + strategyPart + " in " + formatDuration(tableRicElapsedMs) + ".");
 				} catch (Exception ex) {
 					long elapsedMs = Math.max(0, (System.nanoTime() - startNs) / 1_000_000);
 					String reason = ex.getMessage() == null ? "Computation failed." : ex.getMessage();
@@ -141,9 +155,16 @@ public class DecomposeController {
 				}
 			});
 
-			DecomposeAllResponse aggregate = decomposeService.decomposeAll(req, session);
+			// Run global validation silently and keep modal focused on table RIC messages.
+			long globalStartNs = System.nanoTime();
+
+			DecomposeAllResponse aggregate = decomposeService.decomposeAll(req, session, null);
+
+			long globalElapsedMs = Math.max(0, (System.nanoTime() - globalStartNs) / 1_000_000);
+			System.out.println("[DecomposeController] Global validation completed in " + formatDuration(globalElapsedMs));
+
 			storeBcnfDataIfComplete(session, aggregate, computationId);
-			emitComplete(emitter, aggregate);
+			emitComplete(emitter, aggregate, totalElapsedMs.get());
 		} catch (Exception ex) {
 			emitError(emitter, ex.getMessage() == null ? "Normalization failed." : ex.getMessage());
 		} finally {
@@ -165,11 +186,12 @@ public class DecomposeController {
 		}
 	}
 
-	private void emitComplete(SseEmitter emitter, DecomposeAllResponse payload) {
+	private void emitComplete(SseEmitter emitter, DecomposeAllResponse payload, long elapsedMs) {
 		try {
 			emitter.send(SseEmitter.event().name("complete").data(Map.of(
 				"status", "done",
-				"payload", payload
+				"payload", payload,
+				"elapsedMs", Math.max(0L, elapsedMs)
 			)));
 		} catch (IOException ignored) {
 		}
@@ -195,10 +217,19 @@ public class DecomposeController {
 	}
 
 	private String formatDuration(long elapsedMs) {
-		if (elapsedMs < 1000) {
-			return elapsedMs + " ms";
+		long safeMs = Math.max(0L, elapsedMs);
+		if (safeMs < 1000L) {
+			return safeMs + "ms";
 		}
-		return String.format(Locale.US, "%.2f s", elapsedMs / 1000.0);
+		return String.format(Locale.US, "%.2fs", safeMs / 1000.0);
+	}
+
+	private long resolveRicElapsedMs(DecomposeResponse tableResponse, long fallbackStartNs) {
+		if (tableResponse != null && tableResponse.getRicElapsedMs() != null) {
+			return Math.max(0L, tableResponse.getRicElapsedMs());
+		}
+		// Fallback protects stream output if response timing is missing for any reason.
+		return Math.max(0L, (System.nanoTime() - fallbackStartNs) / 1_000_000);
 	}
 
 	/**

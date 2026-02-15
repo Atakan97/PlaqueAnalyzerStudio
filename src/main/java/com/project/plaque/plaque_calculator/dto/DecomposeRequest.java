@@ -8,7 +8,6 @@ public class DecomposeRequest {
 	private String manualData;
 	private List<Integer> columns;
 	private String fds;
-	private int timeLimit;
 	private boolean monteCarlo;
 	private int samples;
 	private List<Integer> baseColumns;
@@ -28,9 +27,6 @@ public class DecomposeRequest {
 
 	public String getFds() { return fds; }
 	public void setFds(String fds) { this.fds = fds; }
-
-	public int getTimeLimit() { return timeLimit; }
-	public void setTimeLimit(int timeLimit) { this.timeLimit = timeLimit; }
 
 	public boolean isMonteCarlo() { return monteCarlo; }
 	public void setMonteCarlo(boolean monteCarlo) { this.monteCarlo = monteCarlo; }

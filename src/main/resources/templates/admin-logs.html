@@ -182,6 +182,7 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
     }
+    /* Layout that title on the left, sorting on the right. */
     .table-container {
       background: white;
       border-radius: 16px;
@@ -190,6 +191,10 @@
       overflow: hidden;
     }
     .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
       padding: 20px 24px;
       border-bottom: 1px solid #e2e8f0;
       background: #f8fafc;
@@ -199,6 +204,38 @@
       font-size: 1.2rem;
       font-weight: 600;
       color: #1e293b;
+    }
+    .table-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sort-form {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+    }
+    .sort-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+    }
+    .sort-select {
+      padding: 10px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      background: white;
+      color: #0f172a;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .sort-select:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      outline: none;
     }
     .table-scroll {
       overflow-x: auto;
@@ -243,8 +280,19 @@
     .col-timestamp {
       white-space: nowrap;
       color: #64748b;
+    }
+    .timestamp-date {
+      display: block;
+      font-weight: 600;
+      color: #334155;
+      font-size: 0.9rem;
+    }
+    .timestamp-time {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.9rem;
+      color: #94a3b8;
       font-family: 'Courier New', monospace;
-      font-size: 0.85rem;
     }
     .col-username {
       font-weight: 600;
@@ -378,6 +426,11 @@
         grid-template-columns: 1fr;
       }
 
+      .table-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
       .table-scroll {
         overflow-x: scroll;
       }
@@ -421,6 +474,8 @@
   <div class="filter-section">
     <div class="filter-header">Filter Logs</div>
     <form method="GET" th:action="@{/admin/logs}" class="filter-form">
+      <!-- Keep the sort option when filtering by user name. -->
+      <input type="hidden" name="sortOption" th:value="${sortOption}" />
       <div class="filter-group">
         <label class="filter-label" for="userNameFilter">User Name</label>
         <input
@@ -439,7 +494,23 @@
   <!-- Table -->
   <div class="table-container">
     <div class="table-header">
-      <h2 class="table-title">Activity Records</h2>
+      <h2 class="table-title">Normalization Logs</h2>
+
+      <div class="table-header-actions">
+        <!-- Sorting uses GET so admins can refresh the current page. -->
+        <form method="GET" th:action="@{/admin/logs}" class="sort-form" id="logSortForm">
+          <!-- Keep the user filter when changing sorting. -->
+          <input type="hidden" name="userNameFilter" th:value="${userNameFilter}" />
+
+          <label for="sortOption" class="sort-label">Sort by</label>
+          <select id="sortOption" name="sortOption" class="sort-select">
+            <option value="timestamp_desc" th:selected="${sortOption == 'timestamp_desc'}">Date: Newest first</option>
+            <option value="timestamp_asc" th:selected="${sortOption == 'timestamp_asc'}">Date: Oldest first</option>
+            <option value="rating_desc" th:selected="${sortOption == 'rating_desc'}">Rating: High to low</option>
+            <option value="rating_asc" th:selected="${sortOption == 'rating_asc'}">Rating: Low to high</option>
+          </select>
+        </form>
+      </div>
     </div>
 
     <div class="table-scroll">
@@ -458,7 +529,7 @@
         </tr>
         </thead>
         <tbody>
-        <!-- Boş durum -->
+        <!-- Empty state -->
         <tr th:if="${logs == null or logs.isEmpty()}">
           <td colspan="9">
             <div class="empty-state">
@@ -471,8 +542,23 @@
         <!-- Log records -->
         <tr th:each="log : ${logs}">
           <td class="col-id" th:text="${log.id}">1</td>
-          <td class="col-timestamp" th:text="${#temporals.format(log.timestamp, 'yyyy-MM-dd HH:mm:ss')}">
-            2025-10-29 10:00:00
+          <td class="col-timestamp">
+            <!-- Use a date format that it is easy to read (example: "6 Feb 2026"). -->
+            <span
+              class="timestamp-date"
+              th:text="${log.timestamp != null ? #temporals.format(log.timestamp, 'd MMM uuuu', T(java.util.Locale).ENGLISH) : '-'}"
+            >
+              6 Feb 2026
+            </span>
+
+            <!-- Show the time under the date. -->
+            <span
+              class="timestamp-time"
+              th:if="${log.timestamp != null}"
+              th:text="${#temporals.format(log.timestamp, 'HH:mm:ss')}"
+            >
+              04:38:14
+            </span>
           </td>
           <td class="col-username" th:text="${log.userName}">Username</td>
           <td class="col-process">
@@ -505,6 +591,9 @@
           </td>
           <td style="text-align: center;">
             <form th:action="@{/admin/delete/{id}(id=${log.id})}" method="post" class="delete-log-form" style="margin: 0;">
+              <!-- Keep filter/sort values after deleting a record. -->
+              <input type="hidden" name="userNameFilter" th:value="${userNameFilter}" />
+              <input type="hidden" name="sortOption" th:value="${sortOption}" />
               <button type="submit" class="delete-btn">🗑️ Delete</button>
             </form>
           </td>
@@ -518,6 +607,14 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    // Auto-submit the sort form when the admin changes the dropdown.
+    // This keeps the UI simple and avoids an extra "Apply" button.
+    const sortForm = document.getElementById('logSortForm');
+    const sortSelect = document.getElementById('sortOption');
+    if (sortForm && sortSelect) {
+      sortSelect.addEventListener('change', () => sortForm.submit());
+    }
+
     // Delete confirmation
     document.querySelectorAll('.delete-log-form').forEach(form => {
       form.addEventListener('submit', async (event) => {

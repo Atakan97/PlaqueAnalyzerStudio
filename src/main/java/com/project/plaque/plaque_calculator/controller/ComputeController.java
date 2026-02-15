@@ -243,6 +243,7 @@ public class ComputeController {
 		}
 
 		CompletableFuture.runAsync(() -> {
+			long computationStartTime = System.currentTimeMillis();
 			List<String> progressSteps = new ArrayList<>();
 			Consumer<String> progressCallback = step -> {
 				progressSteps.add(step);
@@ -262,21 +263,35 @@ public class ComputeController {
 					System.out.println("[ComputeController] Starting RIC computation...");
 					// Use RIC format for JAR computation
 					RicService.RicComputationResult result = ricService.computeRicAdaptive(finalRicManual, safeFds, mc, smp, progressCallback);
-					System.out.println("[ComputeController] RIC computation completed, persisting results...");
+					long wallElapsedMs = System.currentTimeMillis() - computationStartTime;
+					// Use the display elapsed time from RicService so UI and steps match.
+					long displayElapsedMs = result.elapsedMs() > 0 ? result.elapsedMs() : wallElapsedMs;
+					System.out.println("[ComputeController] RIC computation completed in " + wallElapsedMs + "ms (display " + displayElapsedMs + "ms), persisting results...");
 					List<String> finalSteps = result.steps() != null ? result.steps() : progressSteps;
 					// Use ORIGINAL format for session storage (so UI shows correct values)
 					persistResults(session, null, finalOriginalManual, safeFds, result.matrix(), finalSteps, result.finalStrategy(), mc, smp, duplicatesRemoved, computationId);
 					System.out.println("[ComputeController] Results persisted, sending complete event...");
-					sendEvent(emitter, "complete", Map.of("finalStrategy", result.finalStrategy(), "redirectUrl", "/calc-results?id=" + computationId, "computationId", computationId));
+					sendEvent(emitter, "complete", Map.of(
+						"finalStrategy", result.finalStrategy(),
+						"redirectUrl", "/calc-results?id=" + computationId,
+						"computationId", computationId,
+						"elapsedMs", displayElapsedMs
+					));
 					emitter.complete();
 					System.out.println("[ComputeController] Stream completed successfully.");
 				} else {
 					// NO-PLAQUE mode: Skip RIC computation
 					System.out.println("[ComputeController] NO-PLAQUE mode: Skipping RIC computation");
 					sendEvent(emitter, "progress", Map.of("message", "NO-PLAQUE mode: Skipping RIC computation"));
+					long computationElapsedMs = System.currentTimeMillis() - computationStartTime;
 					List<String> skippedSteps = List.of("RIC computation skipped (NO-PLAQUE mode)");
 					persistResults(session, null, finalOriginalManual, safeFds, new double[0][0], skippedSteps, "SKIPPED", mc, smp, duplicatesRemoved, computationId);
-					sendEvent(emitter, "complete", Map.of("finalStrategy", "SKIPPED", "redirectUrl", "/calc-results?id=" + computationId, "computationId", computationId));
+					sendEvent(emitter, "complete", Map.of(
+						"finalStrategy", "SKIPPED",
+						"redirectUrl", "/calc-results?id=" + computationId,
+						"computationId", computationId,
+						"elapsedMs", computationElapsedMs
+					));
 					emitter.complete();
 					System.out.println("[ComputeController] NO-PLAQUE stream completed.");
 				}

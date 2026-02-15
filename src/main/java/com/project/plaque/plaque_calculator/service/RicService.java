@@ -44,7 +44,7 @@ public class RicService {
 
 	private static record RicAttempt(boolean monteCarlo, int samples, int timeoutSeconds) { }
 
-	public record RicComputationResult(double[][] matrix, String finalStrategy, List<String> steps) { }
+	public record RicComputationResult(double[][] matrix, String finalStrategy, List<String> steps, long elapsedMs) { }
 
 	public static class RicComputationException extends RuntimeException {
 		private final List<String> steps;
@@ -142,6 +142,8 @@ public class RicService {
 			}
 		};
 
+		long totalElapsedMs = 0L;
+
 		for (RicAttempt attempt : attempts) {
 			String description = describeAttempt(attempt);
 			recordStep.accept("Starting " + description + ".");
@@ -155,11 +157,14 @@ public class RicService {
 						attempt.samples()
 				);
 				long elapsedMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
+				totalElapsedMs += Math.max(0, elapsedMs);
 				recordStep.accept("Completed " + description + " in " + formatDuration(elapsedMs) + ".");
-				return new RicComputationResult(matrix, description, List.copyOf(steps));
+				return new RicComputationResult(matrix, description, List.copyOf(steps), totalElapsedMs);
 			} catch (RicTimeoutException timeout) {
+				long elapsedMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
+				totalElapsedMs += Math.max(0, elapsedMs);
 				recordStep.accept("Timed out while " + description + " after "
-						+ attempt.timeoutSeconds() + " seconds; moving on to the next stage.");
+						+ formatDuration(elapsedMs) + "; moving on to the next stage.");
 				lastException = timeout;
 			} catch (RuntimeException ex) {
 				recordStep.accept("Failed while " + description + ": " + ex.getMessage());
@@ -249,10 +254,11 @@ public class RicService {
 	}
 
 	private String formatDuration(long elapsedMs) {
-		if (elapsedMs < 1000) {
-			return elapsedMs + " ms";
+		long safeMs = Math.max(0, elapsedMs);
+		if (safeMs < 1000L) {
+			return safeMs + "ms";
 		}
-		return String.format(Locale.US, "%.2f s", elapsedMs / 1000.0);
+		return String.format(Locale.US, "%.2fs", safeMs / 1000.0);
 	}
 
 	/**
@@ -449,4 +455,3 @@ public class RicService {
 		return out;
 	}
 }
-

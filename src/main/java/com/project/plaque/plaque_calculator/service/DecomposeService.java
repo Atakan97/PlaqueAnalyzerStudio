@@ -188,6 +188,9 @@ public class DecomposeService {
 				.collect(Collectors.toList());
 
 		DecomposeResponse resp = new DecomposeResponse(ricMatrix, fdsStr, prefixedSteps);
+		// Keep exact per-table timing/strategy so stream UI can show one accurate summary line.
+		resp.setRicElapsedMs(Math.max(0L, ricResult.elapsedMs()));
+		resp.setRicStrategy(ricResult.finalStrategy());
 		resp.setTransitiveFDs(transitiveFDsStr);
 		System.out.println("DecomposeService.decomposeWithProgress: done -> " + resp);
 		return resp;
@@ -195,11 +198,15 @@ public class DecomposeService {
 
 	// DecomposeService.decomposeAll - single clean method with computationId support
 	public DecomposeAllResponse decomposeAll(DecomposeAllRequest req, HttpSession session) {
+		return decomposeAll(req, session, null);
+	}
+
+	public DecomposeAllResponse decomposeAll(DecomposeAllRequest req, HttpSession session, Consumer<String> progressListener) {
 		System.out.println("DecomposeService.decomposeAll: start");
 
 		String computationId = req != null ? req.getComputationId() : null;
 
-		// Original FDs & attrs (computationId varsa prefixed session key'lerden okunur)
+		// Original FDs & attrs (if computationId is available, reads from prefixed session key)
 		List<FD> originalFDs = getOriginalFDsOrThrow(session, computationId);
 		List<String> originalAttrOrder = getOriginalAttrOrder(session, computationId);
 
@@ -309,6 +316,12 @@ public class DecomposeService {
 		if (!scopedOriginalAttrs.equals(unionAttrs)) {
 			System.out.println("DecomposeService.decomposeAll: unionAttrs=" + unionAttrs + ", scopedOriginalAttrs=" + scopedOriginalAttrs);
 		}
+		// Keep missing coverage info so UI can explain validation result precisely.
+		List<Integer> missingColumns = scopedAttrOrder.stream()
+				.filter(attr -> !unionAttrs.contains(attr))
+				.map(originalAttrOrder::indexOf)
+				.filter(idx -> idx != null && idx >= 0)
+				.collect(Collectors.toList());
 
 		// Build global manual rows with consistent column count (union columns)
 		List<String> manualRowsList = new ArrayList<>();
@@ -366,35 +379,19 @@ public class DecomposeService {
 		}
 
 		String builtManual = String.join(";", manualRowsList).trim();
-		System.out.println("DecomposeService.decomposeAll: built manualData for global RIC = " + builtManual);
+		System.out.println("DecomposeService.decomposeAll: built manualData for global" + builtManual);
 		System.out.println("DecomposeService.decomposeAll: passing topFds = '" + topFdsForRic + "' to RicService");
 
-		// Compute global RIC with adaptive fallbacks - skip if manual data is empty to avoid jar errors
-		double[][] globalRic;
-		if (builtManual.isEmpty()) {
-			System.out.println("DecomposeService.decomposeAll: skipping global RIC computation (empty manual data)");
-			globalRic = new double[0][0];
-		} else {
-			List<String> globalRicSteps = new ArrayList<>();
-			RicService.RicComputationResult globalRicResult = ricService.computeRicAdaptive(
-					builtManual,
-					topFdsForRic,
-					req.isMonteCarlo(),
-					req.getSamples(),
-					message -> {
-						if (message != null && !message.isBlank()) {
-							globalRicSteps.add(message.trim());
-						}
-					});
-			globalRic = globalRicResult != null && globalRicResult.matrix() != null
-					? globalRicResult.matrix()
-					: new double[0][0];
-		}
+		// Per-table RIC matrices are computed in decomposeWithProgress() for each decomposed table.
+		// Frontend use ricPerTable for cell coloring.
+		double[][] globalRic = new double[0][0];
+		System.out.println("DecomposeService.decomposeAll: skipping global RIC computation (using per-table RIC instead)");
 
 		// Per-table: project & minimize FDs (still return projected FD lists per table)
 		List<DecomposeResponse> perTableResponses = new ArrayList<>();
 		List<FD> combinedProjectedFds = new ArrayList<>();
-		boolean allTablesBCNF = true; // BCNF bayrağı başlatıldı
+		// Starting BCNF flag
+		boolean allTablesBCNF = true;
 
 		for (int i = 0; i < tables.size(); i++) {
 			Set<String> attrs = tableAttrSets.get(i);
@@ -405,8 +402,8 @@ public class DecomposeService {
 
 			combinedProjectedFds.addAll(minimizedProjected);
 
-			// BCNF checking: Her tablo kendi projected FD'lerine göre kontrol edilmeli
-			// (Tüm orijinal FD'ler yerine, sadece bu tabloya ait projected FD'ler kullanılır)
+			// BCNF checking: Each table will be checked according to their FDs
+			// (Instead of original FDs, projected FDs are used that related to table)
 			boolean isBCNF = checkBCNF(attrs, minimizedProjected, fdService);
 			if (!isBCNF) {
 				allTablesBCNF = false;
@@ -472,6 +469,7 @@ public class DecomposeService {
 		allResp.setDpPreserved(dpPreservedGlobal);
 		allResp.setLjPreserved(ljPreservedGlobal);
 		allResp.setLjDetails(ljDetails);  // Add detailed lossless-join diagnostic info
+		allResp.setMissingColumns(missingColumns);
 		allResp.setBCNFDecomposition(allTablesBCNF);
 		allResp.setMissingFDs(missingFDs);
 
@@ -770,7 +768,7 @@ public class DecomposeService {
 
 	/**
 	 * Lossless-join test with detailed information.
-	 * Returns a LosslessJoinDetail object containing user-friendly explanation.
+	 * Returns a LosslessJoinDetail object containing explanation.
 	 */
 	private com.project.plaque.plaque_calculator.dto.LosslessJoinDetail checkLosslessDecompositionWithDetails(
 			Set<String> R, List<Set<String>> schemas, List<FD> originalFDs) {
@@ -886,7 +884,7 @@ public class DecomposeService {
 
 		detail.setLossless(isLossless);
 
-		// Generate user-friendly explanation
+		// Generate explanation
 		StringBuilder explanation = new StringBuilder();
 		if (isLossless) {
 			explanation.append("✓ The decomposition is lossless-join, meaning no information will be lost when joining the decomposed tables back together.");
@@ -1039,4 +1037,3 @@ public class DecomposeService {
 		return normalFormChecker.isBCNFComprehensive(attributes, allOriginalFds);
 	}
 }
-
