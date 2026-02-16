@@ -164,7 +164,7 @@ public class RicService {
 				long elapsedMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
 				totalElapsedMs += Math.max(0, elapsedMs);
 				recordStep.accept("Timed out while " + description + " after "
-						+ formatDuration(elapsedMs) + "; moving on to the next stage.");
+						+ attempt.timeoutSeconds() + " seconds; moving on to the next stage.");
 				lastException = timeout;
 			} catch (RuntimeException ex) {
 				recordStep.accept("Failed while " + description + ": " + ex.getMessage());
@@ -254,11 +254,10 @@ public class RicService {
 	}
 
 	private String formatDuration(long elapsedMs) {
-		long safeMs = Math.max(0, elapsedMs);
-		if (safeMs < 1000L) {
-			return safeMs + "ms";
+		if (elapsedMs < 1000) {
+			return elapsedMs + " ms";
 		}
-		return String.format(Locale.US, "%.2fs", safeMs / 1000.0);
+		return String.format(Locale.US, "%.2f s", elapsedMs / 1000.0);
 	}
 
 	/**

@@ -398,7 +398,7 @@ body {
     padding-bottom: 8px;
     border-bottom: 2px solid transparent;
     background: linear-gradient(#fff, #fff) padding-box,
-                linear-gradient(90deg, #6366f1, #22d3ee) border-box;
+    linear-gradient(90deg, #6366f1, #22d3ee) border-box;
     background-clip: padding-box, border-box;
     margin-bottom: 16px;
 }
@@ -2662,4 +2662,3 @@ input[type="file"]::file-selector-button:hover {
     color: #92400e;
     font-weight: 600;
 }
-
