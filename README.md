@@ -1,10 +1,14 @@
 # MT-Atakan-Celik-Code
 
-## Plaque Calculator App
+## PlaqueAnalyzer Studio
 
-A web application for displaying relational information content(plaque) and processing with normalization steps.  
-The app is implemented with **Spring Boot** and **Maven**, and relies on the  
+A web application for displaying relational information content (plaque) and processing with database schema normalization.  
+The app is developed with **Spring Boot** and **Maven**, and relies on the  
 [`relational_information_content`](https://github.com/sdbs-uni-p/relational_information_content) tool (included as an external JAR in `libs/`).
+
+<img width="1251" height="1661" alt="projectss1" src="https://github.com/user-attachments/assets/3a323001-f2d7-4e05-80a6-8724eca2673e" />
+
+<img width="1233" height="980" alt="projectss2" src="https://github.com/user-attachments/assets/ba61d576-6789-4ddb-8536-600925107fc9" />
 
 ## Requirements
 
@@ -131,4 +135,11 @@ The app is implemented with **Spring Boot** and **Maven**, and relies on the
 
 3. **Using the App**
 
+
    In order to run the app, please go to the http://localhost:8080.
+
+
+
+
+
+
