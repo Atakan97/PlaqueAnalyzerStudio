@@ -45,6 +45,7 @@ public class ComputeController {
 			@RequestParam(required = false, defaultValue = "false") boolean monteCarlo,
 			@RequestParam(required = false, defaultValue = "100000") int samples,
 			@RequestParam(required = false, defaultValue = "0") int duplicatesRemoved,
+			@RequestParam(required = false) String mode,
 			HttpSession session,
 			Model model
 	) {
@@ -59,8 +60,8 @@ public class ComputeController {
 		String safeFds = sanitizeFds(fds);
 
 		// Check plaque mode from session
-		String plaqueMode = (String) session.getAttribute("plaqueMode");
-		boolean skipRic = "disabled".equals(plaqueMode);
+		String resolvedPlaqueMode = resolvePlaqueMode(mode, session);
+		boolean skipRic = "disabled".equals(resolvedPlaqueMode);
 
 		// Call RicService with adaptive Monte Carlo fallbacks so we can degrade
 		// from exact computation to approximations when the external jar hits timeouts.
@@ -93,7 +94,7 @@ public class ComputeController {
 		model.addAttribute("ricSteps", ricSteps);
 		model.addAttribute("ricFinalStrategy", finalStrategy);
 
-		persistResults(session, model, safeManual, safeFds, ricArr, ricSteps, finalStrategy, monteCarlo, samples, duplicatesRemoved, computationId);
+		persistResults(session, model, safeManual, safeFds, ricArr, ricSteps, finalStrategy, monteCarlo, samples, duplicatesRemoved, computationId, resolvedPlaqueMode);
 
 		// Add computation ID to model for redirect
 		model.addAttribute("computationId", computationId);
@@ -116,6 +117,7 @@ public class ComputeController {
 			@RequestParam(required = false, defaultValue = "false") boolean monteCarlo,
 			@RequestParam(required = false, defaultValue = "100000") int samples,
 			@RequestParam(required = false, defaultValue = "0") int duplicatesRemoved,
+			@RequestParam(required = false) String mode,
 			HttpSession session
 	) {
 		try {
@@ -134,6 +136,7 @@ public class ComputeController {
 			payload.put("monteCarlo", monteCarlo);
 			payload.put("samples", samples);
 			payload.put("duplicatesRemoved", duplicatesRemoved);
+			payload.put("mode", resolvePlaqueMode(mode, session));
 			storeComputeRequest(session, token, payload);
 			return Map.of("token", token);
 		} catch (Exception ex) {
@@ -149,6 +152,7 @@ public class ComputeController {
 			@RequestParam(required = false, defaultValue = "false") boolean monteCarlo,
 			@RequestParam(required = false, defaultValue = "100000") int samples,
 			@RequestParam(required = false) String token,
+			@RequestParam(required = false) String mode,
 			HttpSession session) {
 
 		Map<String, Object> payloadFromToken = null;
@@ -172,6 +176,7 @@ public class ComputeController {
 		boolean mc;
 		int smp;
 		int duplicatesRemoved;
+		String resolvedPlaqueMode = resolvePlaqueMode(mode, session);
 		try {
 			if (payloadFromToken != null) {
 				// Data from token: ricManual is already in RIC format, originalManual is original
@@ -188,6 +193,11 @@ public class ComputeController {
 				smp = spObj instanceof Integer ? (Integer) spObj : Integer.parseInt(String.valueOf(spObj));
 				Object dupObj = payloadFromToken.get("duplicatesRemoved");
 				duplicatesRemoved = dupObj instanceof Integer ? (Integer) dupObj : Integer.parseInt(String.valueOf(dupObj));
+				Object modeObj = payloadFromToken.get("mode");
+				if (modeObj != null) {
+					resolvedPlaqueMode = normalizePlaqueMode(String.valueOf(modeObj));
+				}
+				System.out.println("[ComputeController] mode: " + resolvedPlaqueMode);
 				System.out.println("[ComputeController] ricManual length: " + ricManual.length());
 				System.out.println("[ComputeController] safeFds: " + safeFds);
 				System.out.println("[ComputeController] mc: " + mc + ", smp: " + smp);
@@ -227,6 +237,7 @@ public class ComputeController {
 
 		final String finalRicManual = validated;        // RIC format for JAR
 		final String finalOriginalManual = originalManual; // Original format for session/UI
+		final String finalResolvedPlaqueMode = resolvedPlaqueMode;
 
 		// Calculate row/col count safely
 		String[] rows = finalRicManual.split(";");
@@ -254,8 +265,7 @@ public class ComputeController {
 			};
 
 			// Check plaque mode from session
-			String plaqueMode = (String) session.getAttribute("plaqueMode");
-			boolean skipRic = "disabled".equals(plaqueMode);
+			boolean skipRic = "disabled".equals(finalResolvedPlaqueMode);
 
 			try {
 				if (!skipRic) {
@@ -269,7 +279,7 @@ public class ComputeController {
 					System.out.println("[ComputeController] RIC computation completed in " + wallElapsedMs + "ms (display " + displayElapsedMs + "ms), persisting results...");
 					List<String> finalSteps = result.steps() != null ? result.steps() : progressSteps;
 					// Use ORIGINAL format for session storage (so UI shows correct values)
-					persistResults(session, null, finalOriginalManual, safeFds, result.matrix(), finalSteps, result.finalStrategy(), mc, smp, duplicatesRemoved, computationId);
+					persistResults(session, null, finalOriginalManual, safeFds, result.matrix(), finalSteps, result.finalStrategy(), mc, smp, duplicatesRemoved, computationId, finalResolvedPlaqueMode);
 					System.out.println("[ComputeController] Results persisted, sending complete event...");
 					sendEvent(emitter, "complete", Map.of(
 						"finalStrategy", result.finalStrategy(),
@@ -285,7 +295,7 @@ public class ComputeController {
 					sendEvent(emitter, "progress", Map.of("message", "NO-PLAQUE mode: Skipping RIC computation"));
 					long computationElapsedMs = System.currentTimeMillis() - computationStartTime;
 					List<String> skippedSteps = List.of("RIC computation skipped (NO-PLAQUE mode)");
-					persistResults(session, null, finalOriginalManual, safeFds, new double[0][0], skippedSteps, "SKIPPED", mc, smp, duplicatesRemoved, computationId);
+					persistResults(session, null, finalOriginalManual, safeFds, new double[0][0], skippedSteps, "SKIPPED", mc, smp, duplicatesRemoved, computationId, finalResolvedPlaqueMode);
 					sendEvent(emitter, "complete", Map.of(
 						"finalStrategy", "SKIPPED",
 						"redirectUrl", "/calc-results?id=" + computationId,
@@ -338,8 +348,8 @@ public class ComputeController {
 		session.removeAttribute(prefix + "bcnfSummary");
 		session.removeAttribute(prefix + "bcnfAttempts");
 		session.removeAttribute(prefix + "bcnfElapsedTime");
-		session.removeAttribute(prefix + "bcnfTableCount");
-		session.removeAttribute(prefix + "bcnfDependencyPreserved");
+		session.removeAttribute(prefix + "bcnfOriginalFds");
+		session.removeAttribute(prefix + "bcnfDecomposedTablesFds");
 		session.removeAttribute(prefix + "_lastDecomposeResult");
 		session.removeAttribute(prefix + "_lastBcnfMeta");
 	}
@@ -354,7 +364,8 @@ public class ComputeController {
 						 boolean monteCarlo,
 						 int samples,
 						 int duplicatesRemoved,
-						 String computationId) {
+						 String computationId,
+						 String plaqueMode) {
 		List<String[]> matrixForModel = convertMatrixToStrings(ricArr);
 		String originalTableJson = gson.toJson(matrixForModel);
 		int ricColCount = matrixForModel.isEmpty() ? 0 : matrixForModel.get(0).length;
@@ -370,9 +381,8 @@ public class ComputeController {
 
 		String prefix = "computation_" + computationId + "_";
 
-		// Store plaqueMode in session for persistence across pages
-		String plaqueMode = (String) session.getAttribute("plaqueMode");
-		session.setAttribute(prefix + "plaqueMode", plaqueMode != null ? plaqueMode : "enabled");
+		// Persist mode per computation to avoid cross-tab session interference.
+		session.setAttribute(prefix + "plaqueMode", normalizePlaqueMode(plaqueMode));
 
 		session.setAttribute(prefix + "originalTableJson", originalTableJson);
 		session.setAttribute(prefix + "calcResultsRicMatrix", matrixForModel);
@@ -617,5 +627,26 @@ public class ComputeController {
 			result.add(part);
 		}
 		return result;
+	}
+
+	// Converts mode text to a value: only "enabled" or "disabled"
+	private String normalizePlaqueMode(String rawMode) {
+		if (rawMode == null) {
+			return "enabled";
+		}
+		String normalized = rawMode.trim().toLowerCase(Locale.ROOT);
+		if ("disabled".equals(normalized) || "no-plaque".equals(normalized)) {
+			return "disabled";
+		}
+		return "enabled";
+	}
+
+	// Gets mode from request first; if missing, uses session mode as alternativei
+	private String resolvePlaqueMode(String modeParam, HttpSession session) {
+		if (modeParam != null && !modeParam.isBlank()) {
+			return normalizePlaqueMode(modeParam);
+		}
+		String fromSession = (String) session.getAttribute("plaqueMode");
+		return normalizePlaqueMode(fromSession);
 	}
 }

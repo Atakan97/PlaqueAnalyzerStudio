@@ -281,7 +281,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`/normalize/log-success?userName=${encodeURIComponent(userName)}&attempts=${encodeURIComponent(window.bcnfAttempts ?? 0)}&elapsedTime=${encodeURIComponent(window.bcnfElapsedSeconds ?? 0)}`, {
+                const computationId = window.computationId != null ? String(window.computationId) : '';
+                const response = await fetch(`/normalize/log-success?userName=${encodeURIComponent(userName)}&attempts=${encodeURIComponent(window.bcnfAttempts ?? 0)}&elapsedTime=${encodeURIComponent(window.bcnfElapsedSeconds ?? 0)}&computationId=${encodeURIComponent(computationId)}`, {
                     method: 'POST'
                 });
 
@@ -295,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         icon: 'success',
                         title: 'Results Saved',
                         html: `
-                            <p style="margin-bottom: 16px;">BCNF results have been saved successfully.</p>
+                            <p style="margin-bottom: 16px;">Normalization results have been saved successfully.</p>
                             <div class="star-rating-display">
                                 <span class="rating-label">Your Rating:</span>
                                 <div class="stars-container">${starsHTML}</div>

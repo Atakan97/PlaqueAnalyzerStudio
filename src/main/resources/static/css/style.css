@@ -950,10 +950,24 @@ input[type="file"]::file-selector-button:hover {
 .hint:nth-child(3) { animation-delay: 0.15s; }
 .hint:nth-child(4) { animation-delay: 0.2s; }
 
+/* DP/LJ Status Box – keep inside its relation-group */
+.dpLjStatusBox {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.dpLjMessages {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
 /* Dependency Preserving Status */
 .dp-status {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 14px;
     padding: 16px 20px;
     border-radius: 12px;
@@ -963,6 +977,10 @@ input[type="file"]::file-selector-button:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
     animation: dp-status-slide-in 0.5s ease-out;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    word-break: break-word;
 }
 
 .dp-status:hover {
@@ -1350,15 +1368,25 @@ input[type="file"]::file-selector-button:hover {
 /* Transitive closure message */
 .transitive-closure-message {
     display: block !important;
-    width: 100% !important;
-    margin: 10px 0;
-    padding: 10px;
+    width: auto !important;
+    margin: 10px 0 0;
+    padding: 10px 14px;
     background: #d1fae5;
     border-radius: 6px;
     color: #065f46;
     font-weight: 600;
     text-align: center;
     clear: both;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Ensure the message fits within compact FD panels in decomposed tables */
+.fd-inline-panel--compact .transitive-closure-message {
+    flex-basis: 100%;
+    margin: 8px 0 0;
+    font-size: 0.85em;
 }
 
 .fd-closure-btn {
@@ -1542,45 +1570,189 @@ input[type="file"]::file-selector-button:hover {
 .normalization-container h2 {
     margin-top: 0;
 }
-/* Aligning the title and timer side by side */
-.norm-header {
+/* Normalization Page — Hero Header Card
+   A card at the top of the normalization page that contains
+   the page title, mode badge, a short description and nav buttons */
+.norm-hero-header {
+    position: relative;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 1.5rem;
-}
-.norm-header h2 {
-    margin: 0;
-    font-size: 1.8em;
+    gap: 24px;
+    margin-bottom: 28px;
+    padding: 28px 32px 24px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.06));
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.10);
+    overflow: hidden;
+    /* Smooth entrance animation when the page loads */
+    animation: normHeroFadeIn 0.45s ease-out both;
 }
 
-/* Plaque Mode Badge Styles */
-.plaque-mode-badge {
+/* Gradient accent line at the top of the hero card */
+.norm-hero-header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #6366f1, #a855f7, #22d3ee);
+}
+
+/* Left column: badge, title and subtitle */
+.norm-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Step badge — small colored pill above the title */
+.norm-step-badge {
+    align-self: flex-start;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.85em;
+    gap: 8px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.13);
+    color: #1d4ed8;
     font-weight: 600;
-    letter-spacing: 0.02em;
-    transition: all 0.3s ease;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+    transition: box-shadow 0.25s ease, transform 0.2s ease;
 }
 
-.plaque-mode-enabled {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(37, 99, 235, 0.12));
-    border: 2px solid #3b82f6;
-    color: #1e40af;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+/* Icon inside the step badge */
+.norm-step-badge-icon {
+    font-size: 1rem;
+    filter: drop-shadow(0 3px 6px rgba(59, 130, 246, 0.25));
 }
 
-.plaque-mode-disabled {
-    background: linear-gradient(135deg, rgba(148, 163, 184, 0.12), rgba(100, 116, 139, 0.12));
-    border: 2px solid #94a3b8;
+/* Hover effect for the step badge */
+.norm-step-badge:hover {
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.30);
+    transform: translateY(-1px);
+}
+
+/* Badge variant for NO-PLAQUE mode */
+.norm-step-badge--muted {
+    background: rgba(148, 163, 184, 0.13);
     color: #475569;
-    box-shadow: 0 2px 8px rgba(148, 163, 184, 0.2);
+}
+.norm-step-badge--muted:hover {
+    box-shadow: 0 4px 14px rgba(148, 163, 184, 0.30);
 }
 
+/* Main title inside the hero header */
+.norm-hero-title {
+    margin: 0;
+    font-size: 2.1rem;
+    font-weight: 650;
+    letter-spacing: -0.018em;
+    color: #0f172a;
+}
+
+/* Short description text below the title */
+.norm-hero-subtitle {
+    margin: 0;
+    max-width: 600px;
+    color: #475569;
+    font-size: 0.95rem;
+    line-height: 1.65;
+}
+
+/* Right column: navigation buttons */
+.norm-hero-actions {
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+    padding-top: 4px;
+}
+
+/* Entrance animation keyframes for the hero header */
+@keyframes normHeroFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive: stack header content vertically on small screens */
+@media (max-width: 850px) {
+    .norm-hero-header {
+        flex-direction: column;
+        padding: 24px 20px 20px;
+    }
+    .norm-hero-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* Secondary outline variant for pill buttons (e.g. "Return to Previous")
+   Transparent background with a colored border instead of gradient fill. */
+.button.pill.pill--outline {
+    background: transparent;
+    border: 2px solid #6366f1;
+    color: #6366f1;
+    box-shadow: none;
+}
+.button.pill.pill--outline:hover {
+    background: rgba(99, 102, 241, 0.08);
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.18);
+    transform: translateY(-2px);
+}
+.button.pill.pill--outline:active {
+    transform: translateY(0);
+}
+
+/* Original Table Section Card
+   A small card wrapper around the "Original Table" heading that gives
+   it visual weight with a left accent bar, matching the header style. */
+.norm-section-card {
+    display: flex;
+    align-items: center;
+    margin: 20px 0 14px;
+    padding: 14px 20px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Left accent gradient bar on the section card */
+.norm-section-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    border-radius: 5px 0 0 5px;
+    background: linear-gradient(180deg, #22d3ee 0%, #6366f1 100%);
+}
+
+/* Title text inside the section card */
+.norm-section-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 620;
+    color: #1e293b;
+    letter-spacing: -0.01em;
+}
 #timer {
     font-size: 1.1rem;
     background-color: #e2e8f0;
@@ -1738,21 +1910,21 @@ input[type="file"]::file-selector-button:hover {
     }
 }
 
+/* FD panel container — uses the same border/radius as the section-card
+   but with a lighter shadow to sit below the hero header in visual hierarchy */
 #fdListContainer {
     flex-shrink: 0;
     width: 300px;
     right: 0;
     max-height: none;
-    overflow-y: hidden;
     overflow: hidden;
 
-    /* View Styles */
-    background: #f9f9f9;
-    border: 1px solid #ddd;
-    padding: 0.5rem;
-    border-radius: 0.25rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 14px 16px;
+    border-radius: 14px;
     font-size: 0.9rem;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
 }
 #fdListContainer h4 {
     margin: 0 0 0.3rem;
@@ -1795,14 +1967,40 @@ input[type="file"]::file-selector-button:hover {
 }
 .decomposed-table-holder {
     flex: 1;
-    min-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    /* Extra top space so the absolute-positioned delete-col-btn (top:-20px)
+       remains fully visible inside the scroll container */
+    padding-top: 22px;
+    /* Scrollbar for horizontal overflow */
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
+}
+
+/* Webkit scrollbar styling for decomposed table holders */
+.decomposed-table-holder::-webkit-scrollbar {
+    height: 6px;
+}
+.decomposed-table-holder::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+.decomposed-table-holder::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
+}
+.decomposed-table-holder::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
 }
 .fd-inline-panel--compact {
     margin: 4px 0 16px;
     padding: 12px 16px;
     display: block;
     width: auto;
+    max-width: 100%;
     align-self: flex-start;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 .fd-inline-panel--compact h4 {
     margin: 0 0 10px;
@@ -1830,10 +2028,19 @@ input[type="file"]::file-selector-button:hover {
     border: 1px solid #ddd;
     padding: 1rem;
     box-sizing: border-box;
+    overflow: visible;
 }
 
 .decomposed-wrapper table.data-grid {
     margin-top: 8px;
+    width: max-content;
+    min-width: 100%;
+}
+
+/* Prevent text wrapping in decomposed table cells */
+.decomposed-wrapper table.data-grid th,
+.decomposed-wrapper table.data-grid td {
+    white-space: nowrap;
 }
 
 .compute-ric-btn {
@@ -2165,39 +2372,85 @@ input[type="file"]::file-selector-button:hover {
     font-weight: normal;
 }
 
+/* Save Normalization Results Section */
+/* Main card container for the save section */
 .bcnf-log-section {
     margin: 48px auto 0;
-    max-width: 520px;
-    padding: 28px 32px;
+    max-width: 600px;
+    padding: 32px 36px;
     border-radius: 18px;
-    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.14);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.06));
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.10);
     border: 1px solid rgba(148, 163, 184, 0.25);
-    text-align: center;
     backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
 }
 
-.bcnf-log-section h3 {
-    margin-top: 0;
-    margin-bottom: 16px;
+/* Gradient accent line at the top of the card */
+.bcnf-log-section::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #6366f1, #a855f7, #22d3ee);
+}
+
+/* Header area: title and description text */
+.bcnf-log-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+/* Override the default section-title alignment inside the save card */
+.bcnf-log-section .bcnf-section-title {
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+/* Short description below the title */
+.bcnf-log-subtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+/* Form layout container */
+.bcnf-log-form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
-.bcnf-log-section .form-row {
+/* Input row: label on top, input group below */
+.bcnf-log-input-row {
     display: flex;
     flex-direction: column;
     text-align: left;
     gap: 8px;
 }
 
-.bcnf-log-section label {
+/* Label for the name field */
+.bcnf-log-label {
     font-weight: 600;
+    font-size: 0.9rem;
     color: #334155;
     letter-spacing: 0.01em;
 }
 
-.bcnf-log-section input[type="text"] {
+/* Input and button placed side by side */
+.bcnf-log-input-group {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+}
+
+/* Text input field styling */
+.bcnf-log-input-group input[type="text"] {
+    flex: 1;
     padding: 12px 16px;
     border-radius: 12px;
     border: 1px solid #cbd5f5;
@@ -2206,30 +2459,69 @@ input[type="file"]::file-selector-button:hover {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.bcnf-log-section input[type="text"]:focus {
+/* Focus state for the text input */
+.bcnf-log-input-group input[type="text"]:focus {
     border-color: #6366f1;
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
     outline: none;
 }
 
-.bcnf-log-section button.button {
-    align-self: center;
-    min-width: 180px;
+/* Save button with gradient and icon */
+.bcnf-save-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    min-width: 200px;
     padding: 12px 24px;
-    border-radius: 999px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
     background: linear-gradient(135deg, #4f46e5, #7c3aed);
-    box-shadow: 0 18px 30px -12px rgba(79, 70, 229, 0.55);
+    color: #ffffff;
+    font-size: 0.95rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+    box-shadow: 0 8px 24px -6px rgba(79, 70, 229, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.bcnf-log-section button.button:hover {
+/* Disk icon inside the button */
+.bcnf-save-btn-icon {
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Button hover */
+.bcnf-save-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 22px 40px -14px rgba(76, 29, 149, 0.45);
+    box-shadow: 0 14px 32px -8px rgba(76, 29, 149, 0.50);
 }
 
-.bcnf-log-section button.button:active {
+/* Button active: press down effect */
+.bcnf-save-btn:active {
     transform: translateY(0);
+    box-shadow: 0 6px 16px -4px rgba(79, 70, 229, 0.40);
+}
+
+/* Mobile responsive: stack input and button vertically on small screens */
+@media (max-width: 540px) {
+    .bcnf-log-input-group {
+        flex-direction: column;
+    }
+
+    .bcnf-save-btn {
+        min-width: unset;
+        width: 100%;
+        border-radius: 12px;
+    }
+
+    .bcnf-log-section {
+        padding: 24px 20px;
+        max-width: 100%;
+    }
 }
 /* Button style for the buttons in app */
 .button.pill {
@@ -2272,6 +2564,9 @@ input[type="file"]::file-selector-button:hover {
     flex-direction: column;
     gap: 16px;
     padding-bottom: 24px;
+    overflow: hidden;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 #decomposedRelationsContainer .decomposed-wrapper {
@@ -2291,12 +2586,22 @@ input[type="file"]::file-selector-button:hover {
 #decomposedRelationsContainer .decomposed-content,
 #decomposedRelationsContainer .decomposed-table-holder {
     flex: 1 1 auto;
+    min-width: 0;
 }
 
 #decomposedRelationsContainer table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     display: table;
     border-collapse: separate;
+}
+
+/* Prevent text from wrapping inside decomposed table cells so the
+   table grows horizontally and the holder shows a scrollbar instead
+   of letting long values overflow outside their cells. */
+#decomposedRelationsContainer table.data-grid th,
+#decomposedRelationsContainer table.data-grid td {
+    white-space: nowrap;
 }
 .restore-layout {
     display: flex;
@@ -2315,6 +2620,7 @@ input[type="file"]::file-selector-button:hover {
     gap: 16px;
     padding-bottom: 24px;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 /* FD wrapper must match relation-group sizing exactly */
@@ -2392,6 +2698,7 @@ input[type="file"]::file-selector-button:hover {
     border: 1.5px solid;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     transition: all 0.2s ease;
+    cursor: help;
 }
 
 .normal-form-badge:hover {
@@ -2440,6 +2747,30 @@ input[type="file"]::file-selector-button:hover {
     font-size: 0.9em;
 }
 
+/* ===== Tippy.js Custom Theme for Normal Form Tooltips ===== */
+
+/* Main tooltip box styling */
+.tippy-box[data-theme~='nf-tooltip'] {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: #f1f5f9;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 4px 2px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Arrow color matches the tooltip background */
+.tippy-box[data-theme~='nf-tooltip'] > .tippy-arrow::before {
+    border-top-color: #1e293b;
+}
+
+/* Inner content area spacing */
+.tippy-box[data-theme~='nf-tooltip'] > .tippy-content {
+    padding: 8px 12px;
+}
+
 #decomposedRelationsContainer {
     display: flex;
     flex-wrap: wrap;
@@ -2462,6 +2793,7 @@ input[type="file"]::file-selector-button:hover {
     max-width: calc(33.333% - 12px);
     min-width: 320px;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 #relationsFdListsContainer {
@@ -2574,10 +2906,12 @@ input[type="file"]::file-selector-button:hover {
     width: 100%;
     max-height: 420px;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     border-radius: 10px;
     border: 1px solid rgba(226, 232, 240, 0.9);
     background: rgba(255, 255, 255, 0.75);
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
 }
 
 /* Keep header visible while scrolling inside the wrapper */

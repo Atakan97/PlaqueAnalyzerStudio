@@ -889,14 +889,6 @@ public class DecomposeService {
 		if (isLossless) {
 			explanation.append("✓ The decomposition is lossless-join, meaning no information will be lost when joining the decomposed tables back together.");
 		} else {
-			explanation.append("What does this mean?\n");
-			explanation.append("When you join the decomposed tables back together, you may get extra tuples (spurious tuples) ");
-			explanation.append("that were not in the original relation.\n\n");
-
-			// Analyze common attributes between schemas
-			explanation.append("Why is this happening?\n");
-			explanation.append("The problem is with how your tables share common attributes:\n\n");
-
 			// Find overlapping attributes between schemas
 			Map<String, List<Integer>> attrToSchemas = new HashMap<>();
 			for (int i = 0; i < numSchemas; i++) {
@@ -914,27 +906,15 @@ public class DecomposeService {
 				}
 			}
 
+			explanation.append("Joining the decomposed tables back may produce spurious tuples.\n\n");
+
 			if (commonAttrs.isEmpty()) {
-				explanation.append("• Your decomposed tables have NO common attributes!\n");
-				explanation.append("  Without common attributes, there's no way to join them meaningfully.\n\n");
-				explanation.append("How to fix:\n");
-				explanation.append("  → Ensure that decomposed tables share at least one common attribute.\n");
-				explanation.append("  → The common attributes should form a key (or superkey) in at least one table.\n");
+				explanation.append("• Cause: The decomposed tables share no common attributes.\n");
+				explanation.append("• Fix: Ensure tables share at least one attribute that is a key (or superkey) in at least one of them.\n");
 			} else {
-				explanation.append("• Common attributes between tables: ").append(String.join(", ", commonAttrs)).append("\n");
-				explanation.append("• However, these common attributes do not form a sufficient key based on your functional dependencies.\n\n");
-
-				explanation.append("Your decomposed tables:\n");
-				for (int i = 0; i < numSchemas; i++) {
-					List<String> schemaAttrs = schemas.get(i).stream().sorted().collect(Collectors.toList());
-					explanation.append("  • R").append(i + 1).append(": {")
-							.append(String.join(", ", schemaAttrs)).append("}\n");
-				}
-
-				explanation.append("\nHow to fix:\n");
-				explanation.append("  → Make sure common attributes between tables include a key (or superkey) of at least one table.\n");
-				explanation.append("  → Consider including additional attributes to form a proper key.\n");
-				explanation.append("  → Check if one of your decomposed tables can be the 'original relation' itself.\n");
+				explanation.append("• Common attributes: ").append(String.join(", ", commonAttrs)).append("\n");
+				explanation.append("• Cause: These common attributes do not form a key in any of the decomposed tables.\n");
+				explanation.append("• Fix: Ensure the common attributes include a key (or superkey) of at least one table.\n");
 			}
 		}
 

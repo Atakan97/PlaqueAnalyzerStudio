@@ -119,6 +119,7 @@
 
   <input type="hidden" name="manualData" id="manualData" />
   <input type="hidden" name="fds"        id="fdsInput" />
+  <input type="hidden" name="mode"       id="plaqueModeInput" th:value="${plaqueMode == 'disabled' ? 'disabled' : 'enabled'}" />
 </form>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>

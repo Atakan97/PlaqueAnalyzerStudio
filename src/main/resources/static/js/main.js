@@ -449,20 +449,27 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const modeInput = document.getElementById('plaqueModeInput');
+        const requestMode = (modeInput && modeInput.value) ? modeInput.value : (window.plaqueMode || 'enabled');
+
         startLiveComputation({
             manualData: finalDataString,
             fds: finalFdsString,
             monteCarloSelected: !!(document.getElementById('mcCheckbox')?.checked),
             samples: document.getElementById('samples')?.value || '100000',
-            duplicatesRemoved: duplicateCount
+            duplicatesRemoved: duplicateCount,
+            mode: requestMode
         });
     });
 
-    function startLiveComputation({ manualData, fds, monteCarloSelected, samples, duplicatesRemoved }) {
+    function startLiveComputation({ manualData, fds, monteCarloSelected, samples, duplicatesRemoved, mode }) {
         if (computeBtn) computeBtn.disabled = true;
 
+        const normalizedMode = (mode || window.plaqueMode || 'enabled').toString().toLowerCase();
+        const isNoPlaque = normalizedMode === 'disabled' || normalizedMode === 'no-plaque';
+
         // NO-PLAQUE mode: Skip live computation modal, submit form directly
-        if (window.plaqueMode === 'disabled') {
+        if (isNoPlaque) {
             console.log('[main.js] NO-PLAQUE mode: Skipping live computation modal, submitting form directly');
             document.getElementById('calcForm').submit();
             return;
@@ -724,13 +731,14 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => celebration.remove(), 1500);
         };
 
-        // Build init params and request a short-lived token to avoid huge EventSource URLs
+        // Build init params and request a short-lived token to avoid EventSource URLs
         const initParams = new URLSearchParams();
         initParams.set('manualData', manualData);
         if (fds) initParams.set('fds', fds);
         initParams.set('monteCarlo', monteCarloSelected ? 'true' : 'false');
         initParams.set('samples', samples || '100000');
         initParams.set('duplicatesRemoved', duplicatesRemoved || '0');
+        initParams.set('mode', normalizedMode);
 
         fetch('/compute/stream-init', {
             method: 'POST',

@@ -13,7 +13,7 @@
     <div class="bcnf-header-text">
       <span class="bcnf-badge"><span class="bcnf-badge-icon" aria-hidden="true">🏆</span>BCNF Complete</span>
       <h2 class="bcnf-title">Normalization Summary</h2>
-      <p class="bcnf-subtitle">Review the BCNF decomposed tables with their functional dependencies, and save the session details.</p>
+      <p class="bcnf-subtitle">Review the original and decomposed tables with their functional dependencies, and save the normalization results.</p>
     </div>
     <div class="bcnf-header-actions">
       <a th:href="${computationId != null ? '/normalization?id=' + computationId : '/normalization'}" class="button pill">Back to Normalization</a>
@@ -31,14 +31,27 @@
     <div id="bcnfTablesContainer" class="bcnf-tables-container"></div>
   </section>
 
+  <!-- Save section, users save their normalization session and receive a rating -->
   <section class="bcnf-log-section">
-    <h3 class="bcnf-section-title">Save to Logs</h3>
-    <form id="bcnfLogForm">
-      <div class="form-row">
-        <label for="bcnfUserName">Your Name</label>
-        <input type="text" id="bcnfUserName" name="userName" required placeholder="Please enter your name" />
+    <!-- Section header with title and a short description -->
+    <div class="bcnf-log-header">
+      <h3 class="bcnf-section-title">Save Normalization Results</h3>
+      <p class="bcnf-log-subtitle">
+        Please enter your name to save this normalization session. After saving, you will receive a performance rating.
+      </p>
+    </div>
+
+    <!-- input and button are placed side by side on desktop -->
+    <form id="bcnfLogForm" class="bcnf-log-form">
+      <div class="bcnf-log-input-row">
+        <label for="bcnfUserName" class="bcnf-log-label">Your Name</label>
+        <div class="bcnf-log-input-group">
+          <input type="text" id="bcnfUserName" name="userName" required placeholder="Please enter your name" />
+          <button type="submit" class="button bcnf-save-btn">
+            Save &amp; Get Rating
+          </button>
+        </div>
       </div>
-      <button type="submit" class="button">Save Results</button>
     </form>
   </section>
 </div>
@@ -49,6 +62,7 @@
   window.plaqueMode = /*[[${plaqueMode}]]*/ 'enabled';
   window.bcnfAttempts = /*[[${bcnfAttempts}]]*/ 0;
   window.bcnfElapsedSeconds = /*[[${bcnfElapsedSeconds}]]*/ 0;
+  window.computationId = /*[[${computationId}]]*/ null;
 /*]]>*/
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

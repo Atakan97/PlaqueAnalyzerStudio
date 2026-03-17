@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Normalization Tool</title>
   <link rel="stylesheet" th:href="@{/css/style.css}" />
+  <link rel="stylesheet" th:href="@{/js/libs/tippy.css}" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   <script th:inline="javascript">
     /*<![CDATA[*/
@@ -20,40 +21,62 @@
     window.currentGlobalRic = /*[[${currentGlobalRicJson}]]*/ [];
     window.normalizationStartTimeMs = /*[[${normalizationStartTimeMs}]]*/ null;
     window.computationId = /*[[${computationId}]]*/ null;
+    // Decomposed restore mode: when returning to a previous step that had decomposed tables
+    window.isDecomposedRestore = /*[[${isDecomposedRestore}]]*/ false;
+    window.decomposedRestoreColumns = /*[[${decomposedRestoreColumnsJson}]]*/ [];
+    window.decomposedRestoreManual = /*[[${decomposedRestoreManualJson}]]*/ [];
+    window.decomposedRestoreFds = /*[[${decomposedRestoreFdsJson}]]*/ [];
+    window.decomposedRestoreFdsOriginal = /*[[${decomposedRestoreFdsOriginalJson}]]*/ [];
+    window.decomposedRestoreRic = /*[[${decomposedRestoreRicJson}]]*/ [];
+    window.decomposedRestoreNormalForms = /*[[${decomposedRestoreNormalFormsJson}]]*/ [];
+    window.decomposedRestoreTransitiveFds = /*[[${decomposedRestoreTransitiveFdsJson}]]*/ [];
     /*]]>*/
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <!-- Popper.js must load before Tippy.js (tooltip positioning library) -->
+  <script th:src="@{/js/libs/popper.min.js}"></script>
+  <!-- Tippy.js - tooltip library for normal form badges -->
+  <script th:src="@{/js/libs/tippy-bundle.umd.min.js}"></script>
   <script defer th:src="@{/js/normalize.js}"></script>
 </head>
 <body>
 <div class="normalization-container">
 
-  <div class="norm-header">
-    <div style="display: flex; align-items: center; gap: 15px;">
-      <h2 class="section-heading-sm">Normalization Assistant</h2>
-      <span th:if="${plaqueMode == 'enabled'}" class="plaque-mode-badge plaque-mode-enabled">🔵 WITH-PLAQUE Mode</span>
-      <span th:if="${plaqueMode == 'disabled'}" class="plaque-mode-badge plaque-mode-disabled">⚪ NO-PLAQUE Mode</span>
+  <!-- Hero header card: page title, mode badge, subtitle and navigation actions -->
+  <header class="norm-hero-header">
+    <div class="norm-hero-text">
+      <span th:if="${plaqueMode == 'enabled'}" class="norm-step-badge" id="plaqueModeBadgeEnabled" role="button">
+        <span class="norm-step-badge-icon" aria-hidden="true">📐</span> WITH-PLAQUE Mode
+      </span>
+      <span th:if="${plaqueMode == 'disabled'}" class="norm-step-badge norm-step-badge--muted" id="plaqueModeBadgeDisabled" role="button">
+        <span class="norm-step-badge-icon" aria-hidden="true">📐</span> NO-PLAQUE Mode
+      </span>
+      <h2 class="norm-hero-title">Normalization Assistant</h2>
+      <p class="norm-hero-subtitle">
+        Decompose your table step by step to reach BCNF.
+        Drag columns to build sub-tables and check dependency preservation along the way.
+      </p>
     </div>
-    <div class="norm-header-actions">
-      <a th:if="${canReturn}" th:href="@{/normalize/previous(id=${computationId})}" class="button pill return-previous-btn">
+    <nav class="norm-hero-actions">
+      <a th:if="${canReturn}" th:href="@{/normalize/previous(id=${computationId})}" class="button pill pill--outline">
         ← Return to Previous Step
       </a>
       <!-- WITH-PLAQUE mode: Return to calc-results -->
       <a th:if="${plaqueMode == null or plaqueMode == 'enabled'}"
          th:href="@{/calc-results(id=${computationId})}"
-         class="button pill return-results-btn">
+         class="button pill">
         ← Return to Calculation Results
       </a>
       <!-- NO-PLAQUE mode: Return to main page (calc.html) -->
       <a th:if="${plaqueMode == 'disabled'}"
          th:href="@{/calc(mode='no-plaque')}"
-         class="button pill return-results-btn">
+         class="button pill">
         ← Return to Main Page
       </a>
-    </div>
-  </div>
+    </nav>
+  </header>
 
   <div class="main-normalization-flex">
 
@@ -73,7 +96,10 @@
           </li>
         </ul>
       </div>
-      <h3 class="section-subheading">Original Table</h3>
+      <!-- Section card for the original table heading with a left accent bar -->
+      <div class="norm-section-card">
+        <h3 class="norm-section-title">Original Table</h3>
+      </div>
 
       <div id="originalTableContainer"></div>
       <div class="original-table-controls">

@@ -19,7 +19,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+import com.project.plaque.plaque_calculator.util.DurationFormatUtil;
 
 @Controller
 @RequestMapping("/admin")
@@ -90,21 +93,32 @@ public class AdminController {
 				.distinct()
 				.count();
 
-		// Average completion time
-		double avgDuration = filteredLogs.stream()
-				.filter(log -> log.getElapsedTimeSecs() != null)
-				.mapToLong(LogEntry::getElapsedTimeSecs)
-				.average()
-				.orElse(0.0);
+		// Average completion time per mode (plaque enabled vs disabled)
+		double avgDurationPlaque = calculateAvgDuration(filteredLogs, "enabled");
+		double avgDurationNoPlaque = calculateAvgDuration(filteredLogs, "disabled");
+
+		// Build a map of log ID -> formatted duration string (e.g. "3m 13s")
+		Map<Long, String> durationMap = filteredLogs.stream()
+				.collect(Collectors.toMap(
+						LogEntry::getId,
+						log -> DurationFormatUtil.formatSeconds(log.getElapsedTimeSecs())
+				));
 
 		// Add logs and filter value to the Model
 		model.addAttribute("userNameFilter", nameFilter);
-		// Keep the selected sort option so the UI can show it as selected.
+		// Keep the selected sort option so the UI can show it as selected
 		model.addAttribute("sortOption", resolvedSortOption);
 		// Adds logs to the model
 		model.addAttribute("logs", filteredLogs);
 		model.addAttribute("activeUsers", activeUsers);
-		model.addAttribute("avgDuration", String.format("%.1f", avgDuration));
+		// Formatted duration for each log row
+		model.addAttribute("durationMap", durationMap);
+
+		// Formatted average durations; returns null when no data is available for a mode
+		model.addAttribute("avgDurationPlaque",
+				DurationFormatUtil.formatAverage(avgDurationPlaque));
+		model.addAttribute("avgDurationNoPlaque",
+				DurationFormatUtil.formatAverage(avgDurationNoPlaque));
 
 
 		return "admin-logs";
@@ -124,6 +138,19 @@ public class AdminController {
 			case "timestamp_asc", "timestamp_desc", "rating_asc", "rating_desc" -> normalized;
 			default -> DEFAULT_SORT_OPTION;
 		};
+	}
+
+	/**
+	 * Calculates the average elapsed time for logs that the plaque mode ("enabled" or "disabled")
+	 * Returns -1.0 if there are no matching logs, so the UI will show "--".
+	 */
+	private static double calculateAvgDuration(List<LogEntry> logs, String plaqueMode) {
+		return logs.stream()
+				.filter(log -> log.getElapsedTimeSecs() != null)
+				.filter(log -> plaqueMode.equalsIgnoreCase(log.getPlaqueMode()))
+				.mapToLong(LogEntry::getElapsedTimeSecs)
+				.average()
+				.orElse(-1.0);
 	}
 
 	/**
@@ -167,7 +194,7 @@ public class AdminController {
 			RedirectAttributes redirectAttributes
 	) {
 
-		// Simple Security Check (Prevent unauthorized access)
+		// Simple Security Check (prevent unauthorized access)
 		if (session.getAttribute("isAdmin") == null) {
 			return "redirect:/";
 		}

@@ -1,5 +1,6 @@
 package com.project.plaque.plaque_calculator.controller;
 
+import com.google.gson.Gson;
 import com.project.plaque.plaque_calculator.dto.DecomposeAllRequest;
 import com.project.plaque.plaque_calculator.dto.DecomposeAllResponse;
 import com.project.plaque.plaque_calculator.dto.DecomposeRequest;
@@ -15,9 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,6 +28,7 @@ public class DecomposeController {
 
 	private final DecomposeService decomposeService;
 	private final LogService logService;
+	private final Gson gson = new Gson();
 	private static final String ATTEMPT_COUNT_SESSION_KEY = "attemptCount";
 	private static final String NORMALIZATION_START_TIME_KEY = "normalizationStartTime";
 	private static final String STREAM_REQUESTS_SESSION_KEY = "decomposeStreamRequests";
@@ -104,7 +104,7 @@ public class DecomposeController {
 
 		DecomposeAllResponse response = decomposeService.decomposeAll(req, session);
 
-		storeBcnfDataIfComplete(session, response, computationId);
+		storeBcnfDataIfComplete(session, req, response, computationId);
 
 		return ResponseEntity.ok(response);
 	}
@@ -163,7 +163,7 @@ public class DecomposeController {
 			long globalElapsedMs = Math.max(0, (System.nanoTime() - globalStartNs) / 1_000_000);
 			System.out.println("[DecomposeController] Global validation completed in " + formatDuration(globalElapsedMs));
 
-			storeBcnfDataIfComplete(session, aggregate, computationId);
+			storeBcnfDataIfComplete(session, req, aggregate, computationId);
 			emitComplete(emitter, aggregate, totalElapsedMs.get());
 		} catch (Exception ex) {
 			emitError(emitter, ex.getMessage() == null ? "Normalization failed." : ex.getMessage());
@@ -237,7 +237,7 @@ public class DecomposeController {
 	 * If computationId is provided, returns "computation_{id}_", otherwise returns empty string.
 	 */
 	private String getSessionKeyPrefix(String computationId) {
-		if (computationId == null || computationId.isBlank()) {
+		if (computationId == null || computationId.isBlank() || "null".equals(computationId)) {
 			return "";
 		}
 		return "computation_" + computationId + "_";
@@ -269,7 +269,8 @@ public class DecomposeController {
 		return attemptCount;
 	}
 
-	private void storeBcnfDataIfComplete(HttpSession session, DecomposeAllResponse response, String computationId) {
+	private void storeBcnfDataIfComplete(HttpSession session, DecomposeAllRequest req,
+									  DecomposeAllResponse response, String computationId) {
 		if (response == null || !response.isBCNFDecomposition()) {
 			System.out.println("[DecomposeController] storeBcnfDataIfComplete: BCNF not yet achieved, skipping storage.");
 			return;
@@ -308,13 +309,76 @@ public class DecomposeController {
 			attemptCount = 1;
 		}
 
+		// Store BCNF data in prefixed session keys (used by bcnf-review endpoint)
+		session.setAttribute(prefix + "bcnfAttempts", attemptCount);
+		session.setAttribute(prefix + "bcnfElapsedTime", elapsedSeconds);
 
-		// Store BCNF data in non-prefixed session keys (used by bcnf-review endpoint)
-		session.setAttribute("bcnfAttempts", attemptCount);
-		session.setAttribute("bcnfElapsedTime", elapsedSeconds);
-		int tableCount = response.getTableResults() != null ? response.getTableResults().size() : 0;
-		session.setAttribute("bcnfTableCount", tableCount);
-		session.setAttribute("bcnfDependencyPreserved", response.isDpPreserved());
+		// Extract and store FD information for logging
+		storeFdDataInSession(session, req, response, computationId);
+	}
 
+	/**
+	 * Extracts functional dependency data from the request/response and stores it
+	 * in the session so that it can be saved to the log when the user completes BCNF.
+	 * Original FDs come from the session (set by ComputeController during initial computation).
+	 * Decomposed table FDs come from the DecomposeAllResponse per-table results.
+	 */
+	private void storeFdDataInSession(HttpSession session, DecomposeAllRequest req,
+									  DecomposeAllResponse response, String computationId) {
+		String prefix = getSessionKeyPrefix(computationId);
+
+		// Read original FD display strings from session (stored by ComputeController.persistResults)
+		@SuppressWarnings("unchecked")
+		List<String> originalFdStrings = (List<String>) session.getAttribute(prefix + "originalFdStringsForDisplay");
+		String originalFdsText = "";
+		if (originalFdStrings != null && !originalFdStrings.isEmpty()) {
+			// Join original FDs with semicolon (e.g. "1,2→3;4→5")
+			originalFdsText = String.join(";", originalFdStrings);
+		}
+		session.setAttribute(prefix + "bcnfOriginalFds", originalFdsText);
+
+		// Build decomposed table FDs as a JSON array from per-table response data
+		List<Map<String, Object>> decomposedFdsList = new ArrayList<>();
+		List<DecomposeResponse> tableResults = response.getTableResults();
+		List<DecomposeRequest> tableRequests = (req != null && req.getTables() != null) ? req.getTables() : List.of();
+
+		if (tableResults != null) {
+			for (int i = 0; i < tableResults.size(); i++) {
+				DecomposeResponse tableResp = tableResults.get(i);
+				Map<String, Object> tableEntry = new LinkedHashMap<>();
+
+				// Table name uses 1-based numbering (e.g. "Table 1", "Table 2")
+				tableEntry.put("tableName", "Table " + (i + 1));
+
+				// Get column indices from the request (0-based)
+				if (i < tableRequests.size() && tableRequests.get(i).getColumns() != null) {
+					// Convert 0-based to 1-based for display consistency
+					List<Integer> displayCols = tableRequests.get(i).getColumns().stream()
+						.map(c -> c + 1)
+						.toList();
+					tableEntry.put("columns", displayCols);
+				}
+
+				// Get projected FDs for this decomposed table
+				List<String> projectedFds = tableResp.getProjectedFDs();
+				if (projectedFds != null) {
+					// Normalize arrow format for consistent display
+					List<String> normalizedFds = projectedFds.stream()
+						.map(fd -> fd.replace("->", "→"))
+						.toList();
+					tableEntry.put("fds", normalizedFds);
+				} else {
+					tableEntry.put("fds", List.of());
+				}
+
+				decomposedFdsList.add(tableEntry);
+			}
+		}
+
+		String decomposedFdsJson = gson.toJson(decomposedFdsList);
+		session.setAttribute(prefix + "bcnfDecomposedTablesFds", decomposedFdsJson);
+
+		System.out.println("[DecomposeController] Stored FD data: originalFds=" + originalFdsText
+			+ ", decomposedTables=" + decomposedFdsList.size());
 	}
 }

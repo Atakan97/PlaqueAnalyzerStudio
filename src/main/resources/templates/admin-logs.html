@@ -72,7 +72,7 @@
     }
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
       margin-bottom: 30px;
     }
@@ -114,6 +114,7 @@
     }
     .stat-icon--blue { background: #dbeafe; }
     .stat-icon--green { background: #d1fae5; }
+    .stat-icon--orange { background: #ffedd5; }
     .stat-icon--purple { background: #e9d5ff; }
     .filter-section {
       background: rgba(255, 255, 255, 0.7);
@@ -406,6 +407,27 @@
       font-size: 1.1rem;
       font-weight: 600;
     }
+    /* View FDs button styling */
+    .view-fds-btn {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+      white-space: nowrap;
+    }
+    .view-fds-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+    .view-fds-btn:active {
+      transform: translateY(0);
+    }
     @media (max-width: 768px) {
       .admin-header {
         flex-direction: column;
@@ -423,7 +445,7 @@
       }
 
       .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
       }
 
       .table-header {
@@ -455,13 +477,18 @@
       <div class="stat-label">Total Logs</div>
       <div class="stat-value" th:text="${logs != null ? logs.size() : 0}">0</div>
     </div>
+    <!-- Average Completion Time for Plaque Mode -->
     <div class="stat-card">
       <div class="stat-icon stat-icon--green">⏱️</div>
-      <div class="stat-label">Average Completion Time</div>
-      <div class="stat-value">
-        <span th:text="${avgDuration != null ? avgDuration : '--'}">--</span>
-        <span style="font-size: 0.9rem; font-weight: 400; color: #64748b;"> s</span>
-      </div>
+      <div class="stat-label">Avg Time (Plaque Mode)</div>
+      <div class="stat-value" th:text="${avgDurationPlaque != null ? avgDurationPlaque : '--'}">--</div>
+    </div>
+
+    <!-- Average Completion Time for No-Plaque Mode -->
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--orange">⏱️</div>
+      <div class="stat-label">Avg Time (No-Plaque Mode)</div>
+      <div class="stat-value" th:text="${avgDurationNoPlaque != null ? avgDurationNoPlaque : '--'}">--</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon stat-icon--purple">👥</div>
@@ -525,13 +552,14 @@
           <th>Attempts</th>
           <th>Rating</th>
           <th>Plaque Mode</th>
+          <th style="text-align: center;">FDs</th>
           <th style="text-align: center;">Action</th>
         </tr>
         </thead>
         <tbody>
         <!-- Empty state -->
         <tr th:if="${logs == null or logs.isEmpty()}">
-          <td colspan="9">
+          <td colspan="10">
             <div class="empty-state">
               <div class="empty-state-icon">📭</div>
               <div class="empty-state-text">No log records found</div>
@@ -570,8 +598,8 @@
                 BCNF_SUCCESS
               </span>
           </td>
-          <td class="col-duration" th:text="${log.elapsedTimeSecs != null ? log.elapsedTimeSecs + ' s' : '-'}">
-            8 s
+          <td class="col-duration" th:text="${durationMap[log.id] != null ? durationMap[log.id] : '-'}">
+            3m 13s
           </td>
           <td class="col-attempts" th:text="${log.attempts != null ? log.attempts : '-'}">1</td>
           <td class="col-rating">
@@ -590,11 +618,21 @@
             </span>
           </td>
           <td style="text-align: center;">
+            <!-- View FDs button: shows a modal with original and decomposed table FDs -->
+            <button
+              type="button"
+              class="view-fds-btn"
+              th:if="${log.originalFds != null or log.decomposedTablesFds != null}"
+              th:attr="data-original-fds=${log.originalFds}, data-decomposed-fds=${log.decomposedTablesFds}"
+            >View FDs</button>
+            <span th:if="${log.originalFds == null and log.decomposedTablesFds == null}" style="color: #94a3b8;">—</span>
+          </td>
+          <td style="text-align: center;">
             <form th:action="@{/admin/delete/{id}(id=${log.id})}" method="post" class="delete-log-form" style="margin: 0;">
               <!-- Keep filter/sort values after deleting a record. -->
               <input type="hidden" name="userNameFilter" th:value="${userNameFilter}" />
               <input type="hidden" name="sortOption" th:value="${sortOption}" />
-              <button type="submit" class="delete-btn">🗑️ Delete</button>
+              <button type="submit" class="delete-btn">Delete</button>
             </form>
           </td>
         </tr>
@@ -636,6 +674,93 @@
         }
       });
     });
+
+    // View FDs modal: shows original and decomposed table functional dependencies
+    document.querySelectorAll('.view-fds-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const originalFds = btn.getAttribute('data-original-fds') || '';
+        const decomposedFdsRaw = btn.getAttribute('data-decomposed-fds') || '';
+
+        let htmlContent = '';
+
+        // Build original FDs section
+        htmlContent += '<div style="text-align:left; margin-bottom:16px;">';
+        htmlContent += '<h4 style="margin:0 0 8px; color:#1e293b; font-size:1rem;">📄 Original Table FDs</h4>';
+        if (originalFds && originalFds.trim().length > 0) {
+          const fdItems = originalFds.split(';').filter(fd => fd.trim().length > 0);
+          htmlContent += '<ul style="list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:6px;">';
+          fdItems.forEach(fd => {
+            const displayFd = fd.trim().replace(/->/g, '→');
+            htmlContent += '<li style="background:#eef2ff; color:#4338ca; padding:4px 10px; border-radius:6px; font-family:monospace; font-size:0.85rem; border:1px solid #c7d2fe;">'
+              + escapeHtml(displayFd) + '</li>';
+          });
+          htmlContent += '</ul>';
+        } else {
+          htmlContent += '<span style="color:#94a3b8; font-size:0.9rem;">No original FDs recorded</span>';
+        }
+        htmlContent += '</div>';
+
+        // Build decomposed table FDs section
+        htmlContent += '<div style="text-align:left;">';
+        htmlContent += '<h4 style="margin:0 0 8px; color:#1e293b; font-size:1rem;">📊 Decomposed Table FDs</h4>';
+
+        let decomposedTables = [];
+        if (decomposedFdsRaw && decomposedFdsRaw.trim().length > 0) {
+          try {
+            decomposedTables = JSON.parse(decomposedFdsRaw);
+          } catch (e) {
+            console.error('Failed to parse decomposed FDs JSON:', e);
+          }
+        }
+
+        if (decomposedTables.length > 0) {
+          decomposedTables.forEach(table => {
+            const tableName = table.tableName || 'Unknown';
+            const columns = Array.isArray(table.columns) ? table.columns : [];
+            const fds = Array.isArray(table.fds) ? table.fds : [];
+
+            htmlContent += '<div style="margin-bottom:12px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px;">';
+            htmlContent += '<div style="font-weight:600; color:#334155; font-size:0.9rem; margin-bottom:6px;">'
+              + escapeHtml(tableName)
+              + ' <span style="color:#94a3b8; font-weight:400; font-size:0.8rem;">(Columns: ' + escapeHtml(columns.join(', ')) + ')</span>'
+              + '</div>';
+
+            if (fds.length > 0) {
+              htmlContent += '<ul style="list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:6px;">';
+              fds.forEach(fd => {
+                const displayFd = fd.replace(/->/g, '→');
+                htmlContent += '<li style="background:#f0fdf4; color:#166534; padding:4px 10px; border-radius:6px; font-family:monospace; font-size:0.85rem; border:1px solid #bbf7d0;">'
+                  + escapeHtml(displayFd) + '</li>';
+              });
+              htmlContent += '</ul>';
+            } else {
+              htmlContent += '<span style="color:#94a3b8; font-size:0.85rem;">No FDs</span>';
+            }
+            htmlContent += '</div>';
+          });
+        } else {
+          htmlContent += '<span style="color:#94a3b8; font-size:0.9rem;">No decomposed table FDs recorded</span>';
+        }
+        htmlContent += '</div>';
+
+        Swal.fire({
+          title: 'Functional Dependencies',
+          html: htmlContent,
+          width: 580,
+          confirmButtonText: 'Close',
+          confirmButtonColor: '#6366f1'
+        });
+      });
+    });
+
+    /**
+     * Escapes HTML special characters to prevent XSS when building modal content.
+     */
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(text));
+      return div.innerHTML;
+    }
   });
 </script>
 </body>

@@ -4,7 +4,6 @@ import lombok.Getter;
 import jakarta.persistence.*;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 
@@ -37,4 +36,12 @@ public class LogEntry {
 
 	// Star rating based on performance (1 to 5 stars)
 	private Integer starRating;
+
+	// Original table's functional dependencies (e.g. "A→B;B→C")
+	@Column(columnDefinition = "TEXT")
+	private String originalFds;
+
+	// Decomposed tables' functional dependencies stored as JSON array
+	@Column(columnDefinition = "TEXT")
+	private String decomposedTablesFds;
 }

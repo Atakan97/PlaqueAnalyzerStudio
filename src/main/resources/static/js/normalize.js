@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
     /**
      * Makes a table vertically scrollable when the number of data rows exceed 10 rows.
      * Due to obtain easy drag-and-drop of columns.
@@ -65,6 +66,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Track attempt count in JavaScript (starts at 1 for the first attempt)
     let currentAttemptCount = 1;
+
+    // Plaque Mode badge, show an info dialog when the user clicks the badge
+    // Helps users understand the difference between WITH-PLAQUE and NO-PLAQUE modes
+    const plaqueModeBadge = document.getElementById('plaqueModeBadgeEnabled')
+                         || document.getElementById('plaqueModeBadgeDisabled');
+    if (plaqueModeBadge) {
+        plaqueModeBadge.addEventListener('click', function () {
+            // Check if badge is the NO-PLAQUE mode
+            const isEnabled = !plaqueModeBadge.classList.contains('norm-step-badge--muted');
+
+            if (isEnabled) {
+                // Show explanation for WITH-PLAQUE mode
+                Swal.fire({
+                    icon: 'info',
+                    title: 'WITH-PLAQUE Mode',
+                    html:
+                        '<div style="text-align:left; font-size:14px; line-height:1.7;">'
+                        + '<p><strong>Relational Information Content (RIC)</strong> is computed '
+                        + 'for the dataset before normalization begins.</p>'
+                        + '<p>Tuples in each table are highlighted with a <strong>plaque</strong> '
+                        + 'that visually represents data redundancy, and the darker shades of blue indicates '
+                        + 'the higher the degree of redundancy.</p>'
+                        + '<p>This helps you identify which parts of the table has the most '
+                        + 'redundant information, making decomposition decisions easier.</p>'
+                        + '</div>',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3b82f6',
+                    width: 520
+                });
+            } else {
+                // Show explanation for NO-PLAQUE mode
+                Swal.fire({
+                    icon: 'info',
+                    title: 'NO-PLAQUE Mode',
+                    html:
+                        '<div style="text-align:left; font-size:14px; line-height:1.7;">'
+                        + '<p>In this mode, normalization is performed <strong>without</strong> '
+                        + 'computing Relational Information Content (RIC).</p>'
+                        + '<p>Tables are displayed in their plain form, plaque '
+                        + 'is not applied to the tuples.</p>'
+                        + '</div>',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#64748b',
+                    width: 520
+                });
+            }
+        });
+    }
 
     // Gives each relation group a stable id in order to store its status
     function getRelationId(group) {
@@ -497,6 +546,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const asString = String(value).trim();
         return asString ? [asString] : [];
+    }
+
+    // Read per-table transitive FDs safely from wrapper dataset.
+    function parseWrapperTransitiveFds(wrapper) {
+        if (!wrapper || !wrapper.dataset) return [];
+        const raw = wrapper.dataset.transitiveFds || wrapper.dataset.transitiveFDs;
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.map(String).map(s => s.trim()).filter(Boolean) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    // Bind closure button once and show inferred FDs or closed-set message.
+    function bindTransitiveClosureButton(buttonEl, fdUl, transitiveFdsList) {
+        if (!buttonEl || !fdUl || !buttonEl.parentNode) return;
+
+        const freshBtn = buttonEl.cloneNode(true);
+        buttonEl.parentNode.replaceChild(freshBtn, buttonEl);
+
+        freshBtn.addEventListener('click', () => {
+            if (freshBtn.disabled) return;
+            freshBtn.disabled = true;
+
+            const normalizedList = Array.isArray(transitiveFdsList)
+                ? transitiveFdsList.map(String).map(s => s.trim()).filter(Boolean)
+                : [];
+
+            if (normalizedList.length > 0) {
+                const existingFds = new Set();
+                Array.from(fdUl.children).forEach(li => {
+                    existingFds.add(li.textContent.trim());
+                });
+
+                normalizedList.forEach(fd => {
+                    if (!existingFds.has(fd)) {
+                        const li = document.createElement('li');
+                        li.textContent = fd;
+                        li.classList.add('inferred');
+                        fdUl.appendChild(li);
+                    }
+                });
+            } else {
+                const oldMessage = fdUl.parentElement.querySelector('.transitive-closure-message');
+                if (oldMessage) oldMessage.remove();
+
+                const messageEl = document.createElement('p');
+                messageEl.textContent = 'This set is transitively closed.';
+                messageEl.classList.add('transitive-closure-message');
+                fdUl.parentElement.appendChild(messageEl);
+            }
+
+            freshBtn.remove();
+        });
     }
 
     // Appends FDs to the existing list with coloring
@@ -958,44 +1063,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Attach event listener to the transitive closure button
                     const transitiveBtn = fdContainer ? fdContainer.querySelector('.fd-closure-btn-decomposed') : null;
                     if (transitiveBtn) {
-                        // Remove any existing listener to prevent duplicates
-                        const newBtn = transitiveBtn.cloneNode(true);
-                        transitiveBtn.parentNode.replaceChild(newBtn, transitiveBtn);
-
-                        newBtn.addEventListener('click', () => {
-                            if (newBtn.disabled) return;
-                            newBtn.disabled = true;
-
-                            if (transitiveFDsList && transitiveFDsList.length > 0) {
-                                // Add transitive FDs to the list
-                                const existingFds = new Set();
-                                Array.from(fdUl.children).forEach(li => {
-                                    existingFds.add(li.textContent.trim());
-                                });
-
-                                transitiveFDsList.forEach(fd => {
-                                    if (!existingFds.has(fd)) {
-                                        const li = document.createElement('li');
-                                        li.textContent = fd;
-                                        li.classList.add('inferred');
-                                        fdUl.appendChild(li);
-                                    }
-                                });
-                            } else {
-                                // No transitive FDs - show message
-                                const messageEl = document.createElement('p');
-                                messageEl.textContent = 'This set is transitively closed.';
-                                messageEl.classList.add('transitive-closure-message');
-                                fdUl.parentElement.appendChild(messageEl);
-                            }
-
-                            // Remove the button
-                            newBtn.remove();
-                        });
+                        bindTransitiveClosureButton(transitiveBtn, fdUl, transitiveFDsList);
                     }
                 }
             } catch (e) {
                 console.warn('computeRicForWrapper: failed to render fd list', e);
+            }
+
+            // Keep the normal form on wrapper so it can be restored from session snapshots.
+            if (typeof json.normalForm === 'string' && json.normalForm.trim()) {
+                wrapper.dataset.normalForm = json.normalForm.trim().toUpperCase();
             }
 
             // Render wrapper tbody using manualRows and apply plaque coloring with ricMatrixSingle
@@ -1185,9 +1262,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayNormalFormBadges(wrapper, currentNF) {
         if (!wrapper || !currentNF) return;
 
-        // Remove existing badges from anywhere in wrapper
+        // Remove existing badges and destroy their Tippy tooltips to prevent memory leak
         const existingBadges = wrapper.querySelector('.normal-form-badges');
-        if (existingBadges) existingBadges.remove();
+        if (existingBadges) {
+            destroyBadgeTooltips(existingBadges);
+            existingBadges.remove();
+        }
 
         // Create badges container
         const badgesContainer = document.createElement('div');
@@ -1222,8 +1302,8 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.appendChild(checkIcon);
         badge.appendChild(text);
 
-        // Add tooltip
-        badge.title = getNormalFormDescription(nf, true);
+        // Create a professional tooltip using Tippy.js
+        createBadgeTooltip(badge, nf, true);
 
         badgesContainer.appendChild(badge);
 
@@ -1238,26 +1318,81 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Get description for normal form tooltip
+    // Get HTML description for normal form tooltip (used by Tippy.js)
     function getNormalFormDescription(nf, isCurrent) {
+        const prefix = isCurrent ? 'Current' : 'Satisfies';
+
+        // Each normal form has a short title and explanation
         const descriptions = {
-            '1NF': 'First Normal Form: All attributes are atomic',
-            '2NF': 'Second Normal Form: No partial dependencies',
-            '3NF': 'Third Normal Form: No transitive dependencies',
-            'BCNF': 'Boyce-Codd Normal Form: Every determinant is a candidate key'
+            '1NF': {
+                title: 'First Normal Form (1NF)',
+                explanation: 'All attributes contain only single (atomic) values. There are no repeating groups or arrays in any column.'
+            },
+            '2NF': {
+                title: 'Second Normal Form (2NF)',
+                explanation: 'Satisfies 1NF, and every non-key attribute depends on the <em>entire</em> primary key — no partial dependencies exist.'
+            },
+            '3NF': {
+                title: 'Third Normal Form (3NF)',
+                explanation: 'Satisfies 2NF, and no non-key attribute depends on another non-key attribute — no transitive dependencies exist.'
+            },
+            'BCNF': {
+                title: 'Boyce-Codd Normal Form (BCNF)',
+                explanation: 'A stricter version of 3NF. Every determinant (left side of a functional dependency) is a candidate key.'
+            }
         };
 
-        const prefix = isCurrent ? 'Current: ' : 'Satisfies: ';
-        return prefix + descriptions[nf];
+        const info = descriptions[nf];
+        if (!info) return nf;
+
+        // Build a HTML tooltip with title and explanation
+        return '<strong>' + prefix + ': ' + info.title + '</strong>'
+             + '<br><span style="font-size:12px; opacity:0.92;">'
+             + info.explanation + '</span>';
+    }
+
+    // Create a Tippy.js tooltip on a badge element
+    function createBadgeTooltip(badge, nf, isCurrent) {
+        const content = getNormalFormDescription(nf, isCurrent);
+
+        // If Tippy.js is available, use it for a professional tooltip
+        if (typeof tippy === 'function') {
+            tippy(badge, {
+                content: content,
+                allowHTML: true,
+                placement: 'top',
+                theme: 'nf-tooltip',
+                animation: 'fade',
+                delay: [100, 50],
+                maxWidth: 320,
+                arrow: true
+            });
+        } else {
+            // use the plain browser tooltip if Tippy is not loaded
+            badge.title = nf;
+        }
+    }
+
+    // Destroy tooltips inside a container before removing to prevent memory leaks when badges are re-created
+    function destroyBadgeTooltips(container) {
+        const badges = container.querySelectorAll('.normal-form-badge');
+        badges.forEach(function(badge) {
+            if (badge._tippy) {
+                badge._tippy.destroy();
+            }
+        });
     }
 
     // Display normal form badges for original table
     function displayOriginalTableNormalFormBadges(container, currentNF) {
         if (!container || !currentNF) return;
 
-        // Remove existing badges
+        // Remove existing badges and destroy their Tippy tooltips to prevent memory leak
         const existingBadges = container.querySelector('.normal-form-badges');
-        if (existingBadges) existingBadges.remove();
+        if (existingBadges) {
+            destroyBadgeTooltips(existingBadges);
+            existingBadges.remove();
+        }
 
         // Create badges container
         const badgesContainer = document.createElement('div');
@@ -1294,8 +1429,8 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.appendChild(checkIcon);
         badge.appendChild(text);
 
-        // Add tooltip
-        badge.title = getNormalFormDescription(nf, true);
+        // Create a tooltip using Tippy.js
+        createBadgeTooltip(badge, nf, true);
 
         badgesContainer.appendChild(badge);
 
@@ -1359,9 +1494,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const old = document.getElementById('relationsFdListsContainer');
         if (old) old.remove();
 
-        // Find "Original Table" heading
-        const heading = document.querySelector('.section-subheading');
-        if (!heading) return;
+        // Find the "Original Table" section card, and place FD lists before it
+        const sectionCard = document.querySelector('.norm-section-card');
+        if (!sectionCard) return;
 
         // Create container with same layout as decomposedRelationsContainer
         const container = document.createElement('div');
@@ -1482,8 +1617,9 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(wrapper);
         });
 
-        // Insert after "Original Table" heading
-        heading.parentNode.insertBefore(container, heading.nextSibling);
+        // Insert FD lists container before the "Original Table" section card
+        // Layout order: FD panels → Section Card → Table
+        sectionCard.parentNode.insertBefore(container, sectionCard);
 
         // Sync badges/highlights now that FD panels exist
         groups.forEach(group => syncRelationPairing(group));
@@ -1710,9 +1846,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     meta.displayFds = displayFds;
 
                     // Get transitive FDs from baseWrapper if available
-                    if (baseWrapper.dataset.transitiveFDs) {
+                    if (baseWrapper.dataset.transitiveFds || baseWrapper.dataset.transitiveFDs) {
                         try {
-                            meta.transitiveFds = JSON.parse(baseWrapper.dataset.transitiveFDs);
+                            meta.transitiveFds = parseWrapperTransitiveFds(baseWrapper);
                         } catch (e) {
                             meta.transitiveFds = [];
                         }
@@ -1760,6 +1896,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (origContainer) {
             origContainer.style.display = 'block';
+        }
+
+        // Decomposed restore mode: recreate decomposed tables from a previous step
+        if (window.isDecomposedRestore === true) {
+            restoreDecomposedTablesFromPreviousStep();
         }
     }
     // Warnings area (for missing column messages)
@@ -2284,7 +2425,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 '',
                 `\u2022 ${coverageResult.message}`,
                 `\u2022 ${result.ljMessage}`,
-                `\u2022 ${result.dpMessage}`
+                '',
+                '------------------------------------',
+                '💡 Your decomposition is valid so far!'
             ].join('\n');
 
             const success = result.ljValid && coverageResult.valid;
@@ -2320,15 +2463,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Safe reset
-    function clearDpLjStatus() {
-        const dpLjStatusBox = document.getElementById('dpLjStatusBox');
-        if (dpLjStatusBox) {
-            dpLjStatusBox.style.display = 'none';
-        }
-        const dpLjMessages = document.getElementById('dpLjMessages');
-        if (dpLjMessages) {
-            dpLjMessages.innerHTML = '';
+    // Reset dp-lj messages
+    function clearDpLjStatus(targetGroup = null) {
+        if (targetGroup) {
+            // Clear local (relation-group scoped) status box
+            const localBox = targetGroup.querySelector('.dpLjStatusBox');
+            if (localBox) {
+                localBox.style.display = 'none';
+                const localMsgs = localBox.querySelector('.dpLjMessages');
+                if (localMsgs) {
+                    localMsgs.innerHTML = '';
+                }
+            }
+        } else {
+            // Clear global status box
+            const dpLjStatusBox = document.getElementById('dpLjStatusBox');
+            if (dpLjStatusBox) {
+                dpLjStatusBox.style.display = 'none';
+            }
+            const dpLjMessages = document.getElementById('dpLjMessages');
+            if (dpLjMessages) {
+                dpLjMessages.innerHTML = '';
+            }
         }
     }
 
@@ -2380,7 +2536,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Unlocks decomposed tables modifications (for "Change Decomposition" button)
     function unlockDecomposedTables(targetGroup = null) {
         // Clear the status box
-        clearDpLjStatus();
+        clearDpLjStatus(targetGroup);
         const scopeRoot = targetGroup || document;
         const wrappers = Array.from(scopeRoot.querySelectorAll('.decomposed-wrapper'));
         wrappers.forEach(w => {
@@ -2622,7 +2778,7 @@ document.addEventListener('DOMContentLoaded', () => {
             finalMessage += "• " + coverageResult.message;
             finalMessage += "\n• " + allChecksResult.ljMessage;
             finalMessage += "\n\n------------------------------------\n";
-            finalMessage += "Your decomposition is valid so far!";
+            finalMessage += "💡 Your decomposition is valid so far!";
 
             // Return the interface to normal
             document.body.style.cursor = 'default';
@@ -3223,44 +3379,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Attach event listener to the transitive closure button
                 const transitiveBtn = fdContainer ? fdContainer.querySelector('.fd-closure-btn-decomposed') : null;
                 if (transitiveBtn && fdUl) {
-                    // Remove any existing listener to prevent duplicates
-                    const newBtn = transitiveBtn.cloneNode(true);
-                    transitiveBtn.parentNode.replaceChild(newBtn, transitiveBtn);
-
-                    newBtn.addEventListener('click', () => {
-                        if (newBtn.disabled) return;
-                        newBtn.disabled = true;
-
-                        if (transitiveFDsList && transitiveFDsList.length > 0) {
-                            // Add transitive FDs to the list
-                            const existingFds = new Set();
-                            Array.from(fdUl.children).forEach(li => {
-                                existingFds.add(li.textContent.trim());
-                            });
-
-                            transitiveFDsList.forEach(fd => {
-                                if (!existingFds.has(fd)) {
-                                    const li = document.createElement('li');
-                                    li.textContent = fd;
-                                    li.classList.add('inferred');
-                                    fdUl.appendChild(li);
-                                }
-                            });
-                        } else {
-                            // No transitive FDs - show message
-                            const messageEl = document.createElement('p');
-                            messageEl.textContent = 'This set is transitively closed.';
-                            messageEl.classList.add('transitive-closure-message');
-                            fdUl.parentElement.appendChild(messageEl);
-                        }
-
-                        // Remove the button
-                        newBtn.remove();
-                    });
+                    bindTransitiveClosureButton(transitiveBtn, fdUl, transitiveFDsList);
                 }
 
                 // Display normal form badges
                 if (normalForm) {
+                    w.dataset.normalForm = String(normalForm).trim().toUpperCase();
                     displayNormalFormBadges(w, normalForm);
                 }
             }
@@ -3336,6 +3460,8 @@ document.addEventListener('DOMContentLoaded', () => {
     //   initialRicMatrix: array | string (JSON)
     function createDecomposedTable(opts = {}) {
         const origMode = !!opts.origMode;
+        // In some restore cases FD list can be empty, but panel/button should stay visible.
+        const forceShowFdPanel = !!opts.forceShowFdPanel;
         const parentContainer = opts.parentContainer instanceof HTMLElement ? opts.parentContainer : null;
         const autoAppend = opts.autoAppend !== false;
         const initialCols = Array.isArray(opts.initialColumns) ? opts.initialColumns.map(n => Number(n)) : null;
@@ -3347,6 +3473,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const initialManualData = (typeof rawManualData === 'string') ? rawManualData : null;
         const initialFds = (typeof opts.initialFds === 'string') ? opts.initialFds : null;
+        const initialNormalForm = (typeof opts.initialNormalForm === 'string') ? opts.initialNormalForm.trim().toUpperCase() : null;
+        const initialTransitiveFds = Array.isArray(opts.initialTransitiveFds)
+            ? opts.initialTransitiveFds.map(String).map(s => s.trim()).filter(Boolean)
+            : [];
         let initialRicMatrix = null;
         if (Array.isArray(opts.initialRicMatrix)) {
             initialRicMatrix = opts.initialRicMatrix;
@@ -3427,7 +3557,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide FD container initially for new decomposed tables
         // It will be shown after RIC computation
         // Exception: if origMode or initialFds are provided (restored tables), show it immediately
-        if (!origMode && !initialFds) {
+        if (!origMode && !initialFds && !forceShowFdPanel) {
             fdContainer.style.display = 'none';
         }
 
@@ -3442,15 +3572,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Table (visual only, header rows will be built from state)
         const table = document.createElement('table');
         table.classList.add('data-grid');
-        table.style.tableLayout = 'fixed';
-        table.style.width = '100%';
         const thead = table.createTHead();
         const headRow = thead.insertRow();
         const tbody = table.createTBody();
         leftCol.appendChild(table);
 
-        // If the decomposed table becomes tall (10+ rows), apply vertical scrolling.
-        // Note: we refresh after renders because row count is determined by tbody.
+        // If the decomposed table becomes long (10+ rows), apply vertical scrolling.
+        // Note: Refreshing after renders because row count is determined by tbody.
         refreshTableVerticalScroll(table, 10);
 
         // Warning container
@@ -3494,6 +3622,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Dataset placeholders
         wrapper.dataset.columns = JSON.stringify([]);
         wrapper.dataset.projectedFds = JSON.stringify([]);
+        if (initialNormalForm) {
+            wrapper.dataset.normalForm = initialNormalForm;
+        }
+        if (initialTransitiveFds.length > 0) {
+            try { wrapper.dataset.transitiveFds = JSON.stringify(initialTransitiveFds); } catch (e) {}
+        }
 
         // Store initialManualData on wrapper (for multi-stage flow)
         if (initialManualData) {
@@ -3870,6 +4004,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     list.forEach(s => { const li = document.createElement('li'); li.textContent = s; fdUlLocal.appendChild(li); });
                 }
             } catch(e) {}
+        } else if (forceShowFdPanel) {
+            // Keep a simple placeholder so panel stays consistent when no FD exists.
+            const fdUlLocal = wrapper.querySelector('.fd-list-container ul');
+            if (fdUlLocal && fdUlLocal.children.length === 0) {
+                const li = document.createElement('li');
+                li.textContent = '-';
+                li.style.background = '#f1f5f9';
+                li.style.color = '#64748b';
+                fdUlLocal.appendChild(li);
+            }
+        }
+
+        // Re-bind closure button in restore path so click always works.
+        const initialFdUl = wrapper.querySelector('.fd-list-container ul');
+        const initialClosureBtn = wrapper.querySelector('.fd-closure-btn-decomposed');
+        if (initialClosureBtn && initialFdUl) {
+            bindTransitiveClosureButton(initialClosureBtn, initialFdUl, initialTransitiveFds);
+        }
+
+        if (initialNormalForm) {
+            displayNormalFormBadges(wrapper, initialNormalForm);
         }
 
         // Per-Table Control Buttons in Restore Mode
@@ -3947,6 +4102,99 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return wrapper;
+    }
+
+    /**
+     * Restores decomposed tables from a previous normalization step.
+     * Called when the user clicks "Return to Previous Step" and the page needs
+     * to show the original table with the decomposed tables that were created
+     * before "Continue Normalization" was clicked.
+     */
+    function restoreDecomposedTablesFromPreviousStep() {
+        const restoreCols = normalizeWindowArray(window.decomposedRestoreColumns);
+        if (!Array.isArray(restoreCols) || restoreCols.length === 0) {
+            console.log('restoreDecomposedTablesFromPreviousStep: no columns data, skipping.');
+            return;
+        }
+
+        const restoreManual = normalizeWindowArray(window.decomposedRestoreManual);
+        const restoreFds = normalizeWindowArray(window.decomposedRestoreFds);
+        const restoreFdsOriginal = normalizeWindowArray(window.decomposedRestoreFdsOriginal);
+        const restoreRic = normalizeWindowArray(window.decomposedRestoreRic);
+        const restoreNormalForms = normalizeWindowArray(window.decomposedRestoreNormalForms);
+        const restoreTransitive = normalizeWindowArray(window.decomposedRestoreTransitiveFds);
+
+        console.log('restoreDecomposedTablesFromPreviousStep: restoring', restoreCols.length, 'tables');
+
+        for (let i = 0; i < restoreCols.length; i++) {
+            let colsEntry = restoreCols[i];
+            if (typeof colsEntry === 'string') {
+                try {
+                    colsEntry = JSON.parse(colsEntry);
+                } catch (e) {
+                    colsEntry = colsEntry.replace(/[\[\]]/g, '').split(',').map(s => s.trim()).filter(Boolean).map(Number);
+                }
+            }
+            const columns = Array.isArray(colsEntry) ? colsEntry.map(Number) : [];
+            if (columns.length === 0) continue;
+
+            // Manual data
+            let manualData = '';
+            if (i < restoreManual.length) {
+                const entry = restoreManual[i];
+                if (typeof entry === 'string') {
+                    manualData = entry;
+                } else if (Array.isArray(entry)) {
+                    manualData = entry.map(row => Array.isArray(row) ? row.join(',') : String(row)).join(';');
+                }
+            }
+
+            // Build a safe FD string from local + original values.
+            const localFdsList = i < restoreFds.length ? normalizeToStringList(restoreFds[i]) : [];
+            const originalFdsList = i < restoreFdsOriginal.length ? normalizeToStringList(restoreFdsOriginal[i]) : [];
+            const mergedFds = localFdsList.length > 0 ? localFdsList : originalFdsList;
+            const fds = mergedFds.join(';');
+
+            const normalForm = (i < restoreNormalForms.length && typeof restoreNormalForms[i] === 'string')
+                ? restoreNormalForms[i]
+                : null;
+
+            const transitiveFds = (i < restoreTransitive.length)
+                ? normalizeToStringList(restoreTransitive[i])
+                : [];
+
+            // RIC matrix
+            let ricMatrix = null;
+            if (i < restoreRic.length) {
+                const entry = restoreRic[i];
+                if (Array.isArray(entry)) {
+                    ricMatrix = entry;
+                } else if (typeof entry === 'string' && entry.trim()) {
+                    try {
+                        const parsed = JSON.parse(entry);
+                        if (Array.isArray(parsed)) ricMatrix = parsed;
+                    } catch (e) { /* ignore */ }
+                }
+            }
+
+            createDecomposedTable({
+                initialColumns: columns,
+                initialManualData: manualData || null,
+                initialFds: fds || null,
+                initialNormalForm: normalForm,
+                initialTransitiveFds: transitiveFds,
+                initialRicMatrix: ricMatrix,
+                forceShowFdPanel: true,
+                autoAppend: true
+            });
+        }
+
+        // Make sure buttons are visible for user interaction
+        if (addTableBtn) addTableBtn.style.display = 'inline-block';
+        if (decompositionFinishedBtn) decompositionFinishedBtn.style.display = 'inline-block';
+        if (changeDecompositionBtn) changeDecompositionBtn.style.display = 'none';
+        if (continueNormalizationBtn) continueNormalizationBtn.style.display = 'none';
+        if (showBcnfTablesBtn) showBcnfTablesBtn.style.display = 'none';
     }
 
     // Attaching global Add Table button
@@ -4183,12 +4431,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            const normalForm = typeof w.dataset.normalForm === 'string' ? w.dataset.normalForm.trim().toUpperCase() : '';
+            const transitiveFds = parseWrapperTransitiveFds(w);
+
             return {
                 columns: cols,
                 manualData: manualDataString,
                 localFds,
                 originalFds,
-                ricMatrix
+                ricMatrix,
+                normalForm,
+                transitiveFds
             };
         });
 
@@ -4207,6 +4460,8 @@ document.addEventListener('DOMContentLoaded', () => {
             manualPerTable: tablesData.map(t => t.manualData),
             fdsPerTable: tablesData.map(t => t.localFds.join(';')),
             fdsPerTableOriginal: tablesData.map(t => t.originalFds.join(';')),
+            normalFormsPerTable: tablesData.map(t => t.normalForm || '1NF'),
+            transitiveFdsPerTable: tablesData.map(t => t.transitiveFds || []),
             ricPerTable: tablesData.map(t => t.ricMatrix),
             globalRic: globalRicMatrix,
             unionCols: unionColumnMapping,

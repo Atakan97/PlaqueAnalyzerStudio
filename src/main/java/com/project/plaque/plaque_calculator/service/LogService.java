@@ -17,10 +17,12 @@ public class LogService {
 	/**
 	 * Logs a successful BCNF normalization process and calculates a star rating.
 	 * The star rating is computed based on the number of attempts and elapsed time.
+	 * Also stores the original and decomposed table functional dependencies.
 	 * @return The calculated star rating (1-5 stars)
 	 */
 	public int logBcnfSuccess(String userName, int attempts, long elapsedTimeSecs,
-							 Integer tableCount, Boolean dependencyPreserved, String plaqueMode) {
+							 String plaqueMode,
+							 String originalFds, String decomposedTablesFds) {
 		LogEntry logEntry = new LogEntry();
 		logEntry.setUserName(userName);
 		logEntry.setAttempts(attempts > 0 ? attempts : 1);
@@ -38,6 +40,10 @@ public class LogService {
 		// Store plaque mode directly (enabled/disabled)
 		logEntry.setPlaqueMode(plaqueMode != null ? plaqueMode : "enabled");
 
+		// Store functional dependencies for the original and decomposed tables
+		logEntry.setOriginalFds(originalFds);
+		logEntry.setDecomposedTablesFds(decomposedTablesFds);
+
 		// Save log entry to database
 		logRepository.save(logEntry);
 
@@ -46,9 +52,9 @@ public class LogService {
 			+ ", Attempts=" + attempts
 			+ ", Time=" + elapsedTimeSecs + "s"
 			+ ", Rating=" + starRating + " stars"
-			+ ", Tables=" + (tableCount != null ? tableCount : 0)
-			+ ", DP=" + (dependencyPreserved != null && dependencyPreserved)
-			+ ", Mode=" + plaqueMode);
+			+ ", Mode=" + plaqueMode
+			+ ", OriginalFDs=" + (originalFds != null ? originalFds.length() + " chars" : "null")
+			+ ", DecomposedFDs=" + (decomposedTablesFds != null ? decomposedTablesFds.length() + " chars" : "null"));
 
 		return starRating;
 	}

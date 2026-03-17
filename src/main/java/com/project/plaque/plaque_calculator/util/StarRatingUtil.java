@@ -4,30 +4,29 @@ package com.project.plaque.plaque_calculator.util;
 // Utility class for calculating star ratings based on normalization performance.
 public class StarRatingUtil {
 
-	// Time thresholds in seconds (2 min, 4 min, 6 min, 8 min)
-	private static final int TWO_MINUTES = 120;
-	private static final int FOUR_MINUTES = 240;
-	private static final int SIX_MINUTES = 360;
-	private static final int EIGHT_MINUTES = 480;
+	// Time thresholds in seconds (5 min, 10 min, 15 min, 20 min)
+	private static final int FIVE_MINUTES = 300;
+	private static final int TEN_MINUTES = 600;
+	private static final int FIFTEEN_MINUTES = 900;
+	private static final int TWENTY_MINUTES = 1200;
 
 	/**
 	 * Table for star ratings.
-	 * Rows represent attempt numbers
-	 * Columns represent time ranges
+	 * Rows represent attempt numbers (1st, 2nd, 3rd, 4th+)
+	 * Columns represent time ranges: <5min, 5-10min, 10-15min, 15-20min, >20min
 	 */
 	private static final int[][] RATING_TABLE = {
-		// Time:    <2min  2-4min  4-6min  6-8min  >8min
-		/* 1st */  {  5,     4,      3,      2,      1  },
-		/* 2nd */  {  4,     3,      2,      1,      1  },
-		/* 3rd */  {  3,     2,      1,      1,      1  },
-		/* 4th */  {  2,     1,      1,      1,      1  },
-		/* 5th+ */ {  1,     1,      1,      1,      1  }
+		// Time:    <5min  5-10min  10-15min  15-20min  >20min
+		/* 1st  */ {  5,     4,       3,        2,        1  },
+		/* 2nd  */ {  4,     3,       2,        1,        1  },
+		/* 3rd  */ {  3,     2,       1,        1,        1  },
+		/* 4th+ */ {  2,     1,       1,        1,        1  }
 	};
 
 	// Calculates the star rating based on attempts and elapsed time.
 	public static int calculateStarRating(int attempts, long elapsedSeconds) {
-		// Determine the row index based on attempts
-		int attemptIndex = Math.min(attempts - 1, 4);
+		// Determine the row index based on attempts (capped at 4th+ row)
+		int attemptIndex = Math.min(attempts - 1, 3);
 
 		// Ensure attempt index is not negative
 		if (attemptIndex < 0) {
@@ -41,16 +40,16 @@ public class StarRatingUtil {
 
 	// Determines the time range index for the table.
 	private static int getTimeIndex(long elapsedSeconds) {
-		if (elapsedSeconds < TWO_MINUTES) {
-			return 0;  // Under 2 minutes
-		} else if (elapsedSeconds < FOUR_MINUTES) {
-			return 1;  // 2 to 4 minutes
-		} else if (elapsedSeconds < SIX_MINUTES) {
-			return 2;  // 4 to 6 minutes
-		} else if (elapsedSeconds < EIGHT_MINUTES) {
-			return 3;  // 6 to 8 minutes
+		if (elapsedSeconds < FIVE_MINUTES) {
+			return 0;  // Under 5 minutes
+		} else if (elapsedSeconds < TEN_MINUTES) {
+			return 1;  // 5 to 10 minutes
+		} else if (elapsedSeconds < FIFTEEN_MINUTES) {
+			return 2;  // 10 to 15 minutes
+		} else if (elapsedSeconds < TWENTY_MINUTES) {
+			return 3;  // 15 to 20 minutes
 		} else {
-			return 4;  // Over 8 minutes
+			return 4;  // Over 20 minutes
 		}
 	}
 }

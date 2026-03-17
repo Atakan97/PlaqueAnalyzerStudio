@@ -50,6 +50,7 @@ public class PageController {
 			HttpSession session,
 			Model model) {
 
+
 		// Handle plaque mode selection
 		String plaqueMode = "enabled"; // Default
 		if ("no-plaque".equals(mode)) {
@@ -65,7 +66,6 @@ public class PageController {
 		if (inputDataJson != null && !inputDataJson.isEmpty()) {
 			model.addAttribute("restoredInputDataJson", inputDataJson);
 		} else if (inputData != null && !inputData.isEmpty()) {
-			// Fallback to legacy format
 			model.addAttribute("restoredInputData", inputData);
 		}
 		if (fdList != null && !fdList.isEmpty()) {
@@ -208,7 +208,7 @@ public class PageController {
 
 		String prefix = "computation_" + computationId + "_";
 
-		Boolean resetRequested = (Boolean) session.getAttribute(RESET_SESSION_KEY);
+		Boolean resetRequested = (Boolean) session.getAttribute(prefix + RESET_SESSION_KEY);
 		boolean initialStatePopulated = false;
 
 		Long startTime = normalizationController.setAndGetNormalizationStartTime(session, computationId);
@@ -224,13 +224,42 @@ public class PageController {
 		boolean canReturn = history != null && !history.isEmpty();
 		model.addAttribute("canReturn", canReturn);
 
+		// Check for "decomposed restore" mode: returning to a previous step where
+		// the user had created decomposed tables. In this case we render the original
+		// table (initial mode) and pass the decomposed table info for the frontend
+		// to recreate the decomposed wrappers automatically
+		@SuppressWarnings("unchecked")
+		Map<String, Object> decomposedRestoreState = (Map<String, Object>) session.getAttribute(prefix + "decomposedRestoreState");
+		if (decomposedRestoreState != null) {
+			System.out.println("[PageController] Using decomposedRestoreState to restore previous step with decomposed tables.");
+			// Load the original table (same as initial mode)
+			populateInitialNormalization(session, model, computationId);
+			initialStatePopulated = true;
+
+			Object restoreNormalForms = decomposedRestoreState.getOrDefault("normalFormsPerTable", Collections.emptyList());
+
+			// Pass decomposed table info so the frontend can recreate the wrappers
+			model.addAttribute("decomposedRestoreColumnsJson", gson.toJson(decomposedRestoreState.getOrDefault("columnsPerTable", Collections.emptyList())));
+			model.addAttribute("decomposedRestoreManualJson", gson.toJson(decomposedRestoreState.getOrDefault("manualPerTable", Collections.emptyList())));
+			model.addAttribute("decomposedRestoreFdsJson", gson.toJson(decomposedRestoreState.getOrDefault("fdsPerTable", Collections.emptyList())));
+			model.addAttribute("decomposedRestoreFdsOriginalJson", gson.toJson(decomposedRestoreState.getOrDefault("fdsPerTableOriginal", Collections.emptyList())));
+			model.addAttribute("decomposedRestoreRicJson", gson.toJson(decomposedRestoreState.getOrDefault("ricPerTable", Collections.emptyList())));
+			model.addAttribute("decomposedRestoreNormalFormsJson", gson.toJson(restoreNormalForms));
+			model.addAttribute("decomposedRestoreTransitiveFdsJson", gson.toJson(decomposedRestoreState.getOrDefault("transitiveFdsPerTable", Collections.emptyList())));
+			model.addAttribute("isDecomposedRestore", true);
+
+			// Clean up so this doesn't trigger again on refresh
+			session.removeAttribute(prefix + "decomposedRestoreState");
+			session.removeAttribute(prefix + RESET_SESSION_KEY);
+		}
+
 		@SuppressWarnings("unchecked")
 		Map<String, Object> restoreState = (Map<String, Object>) session.getAttribute(prefix + RESTORE_SESSION_KEY);
 		Object restoreFlag = session.getAttribute(prefix + "usingDecomposedAsOriginal");
 		boolean restoreRequested = restoreFlag instanceof Boolean && (Boolean) restoreFlag && restoreState != null;
-		if (Boolean.TRUE.equals(resetRequested)) {
+		if (Boolean.TRUE.equals(resetRequested) && !initialStatePopulated) {
 			populateInitialNormalization(session, model, computationId);
-			session.removeAttribute(RESET_SESSION_KEY);
+			session.removeAttribute(prefix + RESET_SESSION_KEY);
 			initialStatePopulated = true;
 		}
 
@@ -279,6 +308,18 @@ public class PageController {
 			populateInitialNormalization(session, model, computationId);
 		}
 
+		// Ensure decomposed restore attributes have defaults when not in that mode
+		if (!model.containsAttribute("isDecomposedRestore")) {
+			model.addAttribute("isDecomposedRestore", false);
+			model.addAttribute("decomposedRestoreColumnsJson", "[]");
+			model.addAttribute("decomposedRestoreManualJson", "[]");
+			model.addAttribute("decomposedRestoreFdsJson", "[]");
+			model.addAttribute("decomposedRestoreFdsOriginalJson", "[]");
+			model.addAttribute("decomposedRestoreRicJson", "[]");
+			model.addAttribute("decomposedRestoreNormalFormsJson", "[]");
+			model.addAttribute("decomposedRestoreTransitiveFdsJson", "[]");
+		}
+
 		// Get the original FD strings for display (in index format like "1,2,3→5")
 		@SuppressWarnings("unchecked")
 		List<String> originalFdStringsForDisplay = (List<String>) session.getAttribute(prefix + "originalFdStringsForDisplay");
@@ -309,7 +350,6 @@ public class PageController {
 
 	private void populateInitialNormalization(HttpSession session, Model model, String computationId) {
 		String prefix = "computation_" + computationId + "_";
-
 		String initJson = (String) session.getAttribute(prefix + "initialCalcTableJson");
 		String ricJsonInit = (String) session.getAttribute(prefix + "originalTableJson");
 
