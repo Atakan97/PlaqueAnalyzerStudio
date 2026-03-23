@@ -25,7 +25,7 @@ If you use this repository, please cite **PlaqueAnalyzer Studio**:
 }
 ```
 
-Cite the underlyting paper:
+Cite the underlying paper:
 
 ```bibtex
 @inproceedings{DBLP:conf/vldb/KohnenKZS23,
