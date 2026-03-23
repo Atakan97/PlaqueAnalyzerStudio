@@ -6,8 +6,8 @@ The app is implemented with **Spring Boot** and **Maven**, and relies on the
 
 ## About
 
-This project was conducted under the supervision of **Stefanie Scherzinger** and **Christoph Köhnen** as part of the Master’s thesis of **Atakan Arda Celik**.  
-The application is based on the concepts presented in the paper:  
+This project was conducted under the supervision of Stefanie Scherzinger and Christoph Köhnen as part of the Master’s thesis of Atakan Arda Celik.  
+The application is based on the ideas introduced in this paper:  
 **“A Plaque Test for Redundancies in Relational Data.”** 
 
 
@@ -25,9 +25,27 @@ If you use this repository, please cite **PlaqueAnalyzer Studio**:
 }
 ```
 
+Cite the underlyting paper:
+
+```bibtex
+@inproceedings{DBLP:conf/vldb/KohnenKZS23,
+  author       = {Christoph K{\"{o}}hnen and
+                  Stefan Klessinger and
+                  Jens Zumbr{\"{a}}gel and
+                  Stefanie Scherzinger},
+  title        = {A Plaque Test for Redundancies in Relational Data},
+  booktitle    = {Joint Proceedings of Workshops at the 49th International Conference
+                  on Very Large Data Bases {(VLDB} 2023), Vancouver, Canada, August
+                  28 - September 1, 2023},
+  series       = {{CEUR} Workshop Proceedings},
+  volume       = {3462},
+  year         = {2023}
+}
+```
+
 ## License
 
-This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Prerequisites
 
