@@ -1,25 +1,25 @@
-# MT-Atakan-Celik-Code
+# PlaqueAnalyzer Studio
 
-## PlaqueAnalyzer Studio
-
-PlaqueAnalyzer Studio is a full-stack web application designed to visualize redundancies (referred to as `plaque`) based on relational information content, while providing normalization to reduce them.  
+PlaqueAnalyzer Studio is a full-stack web application designed to visualize redundancies (referred to as **plaque**) based on relational information content, while providing normalization to reduce them.  
 The app is implemented with **Spring Boot** and **Maven**, and relies on the  
 [`relational_information_content`](https://github.com/sdbs-uni-p/relational_information_content) tool (included as an external JAR in `libs/`).
 
 ## About
 
-This project was conducted under the supervision of Stefanie Scherzinger and Christoph Köhnen as part of the Master's thesis of Atakan Arda Celik.
-The application is built upon the concepts and research presented in the paper "A Plaque Test for Redundancies in Relational Data". 
+This project was conducted under the supervision of **Stefanie Scherzinger** and **Christoph Köhnen** as part of the Master’s thesis of **Atakan Arda Celik**.  
+The application is based on the concepts presented in the paper:  
+**“A Plaque Test for Redundancies in Relational Data.”** 
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
 
 ## Prerequisites
 
 - **Java (JDK 17 or the version required by this project)** 
 - **Maven**  
 - **PostgreSQL & pgAdmin (running locally)**
+- *(Optional for containerized setup)* **Docker Desktop**
 
 ## Project Setup
 
@@ -95,7 +95,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
    spring.datasource.password=user123
    ```
 
-## Running Project
+## Running the Project
 
 1. **Build the project**
 
@@ -121,10 +121,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Running the Project with Docker
 
-1. **Open a terminal in the project folder and run Docker Compose**  
-   *(_Docker Desktop must be installed._)*
-
-   After navigating to the project directory, run:
+   Open a terminal in the project folder and run:
 
    ```bash
    docker compose up --build
@@ -132,4 +129,17 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
    This command builds the project image, pulls the required PostgreSQL image, and starts both the application and the database.
 
-   The first run may take a few minutes, depending on your internet speed.
+   > The first run may take a few minutes, depending on your internet speed.
+
+## Admin Panel Access
+
+If enabled in your configuration, you can log in to the admin panel with the following default credentials:
+
+- **Username:** `admin`
+- **Password:** `1234`
+
+Admin credentials are configured in:
+
+```text
+src/main/resources/application.properties
+```
