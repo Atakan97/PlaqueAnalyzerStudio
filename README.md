@@ -42,7 +42,7 @@ This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**
 
 3. **(Optional) Rebuild the RIC JAR if it is missing**
 
-   If the file above is not present, build it from the `relational_information_content` project and copy it into this project's `libs/ ` directory.
+   If the file above is not present, build it from the `relational_information_content` project and copy it into this project’s        `libs/` directory.
 
    ```bash
    cd path/to/relational_information_content
