@@ -49,7 +49,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Build and Run Options
 
-Please choose **one** method:
+Please choose one method:
 
 - **A) Local (without Docker)**
 - **B) Docker**
@@ -125,6 +125,7 @@ Please choose **one** method:
    ```
 
 3. **Open the application**
+
    http://localhost:8080
 
 ## Admin Panel Access
