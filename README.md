@@ -114,12 +114,14 @@ Please choose one method:
 ## Steps
 
 1. **Clone the repository**
+
    ```bash
    git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
    cd mt-atakan-celik-code
    ```
 
 2. **Start all services**
+
    ```bash
    docker compose up --build
    ```
@@ -130,7 +132,7 @@ Please choose one method:
 
 ## Admin Panel Access
 
-If enabled in your configuration, you can log in to the admin panel with the following default credentials:
+You can log in to the admin panel with the following default credentials:
 
 - **Username:** `admin`
 - **Password:** `1234`
