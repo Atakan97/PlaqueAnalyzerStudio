@@ -79,7 +79,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 5. **Set up PostgreSQL**
 
-  Install PostgreSQL, then create the database and user:
+   Install PostgreSQL, then create the database and user:
 
    ```sql
    CREATE DATABASE plaque_db;
