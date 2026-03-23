@@ -1,17 +1,25 @@
 # MT-Atakan-Celik-Code
 
-## Plaque Calculator App
+## PlaqueAnalyzer Studio
 
-A web application for displaying relational information content(plaque) and processing with normalization steps.  
+PlaqueAnalyzer Studio is a full-stack web application for displaying redundancies (denoted as plaque) with relational information content values and utilizing normalization to reduce redundancies.  
 The app is implemented with **Spring Boot** and **Maven**, and relies on the  
 [`relational_information_content`](https://github.com/sdbs-uni-p/relational_information_content) tool (included as an external JAR in `libs/`).
+
+## About
+
+This project was conducted under the supervision of Stefanie Scherzinger and Christoph Köhnen as part of the Master's thesis of Atakan Arda Celik.
+The application is built upon the concepts and research presented in the paper "A Plaque Test for Redundancies in Relational Data". 
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Requirements
 
 - **Java 17+** 
 - **Maven 3.5+**  
 - **(Optional) An IDE such as IntelliJ IDEA, Eclipse, or VS Code with Java support**
-- **Other maven dependencies will be installed automatically as long as an internet connection is available.**
 - **PostgreSQL & pgAdmin (preferably)**
 
 ## Project Setup
@@ -46,7 +54,7 @@ The app is implemented with **Spring Boot** and **Maven**, and relies on the
 
    Firstly, the JAR files need to be run and created in the relational_information_content project.
 
-   Then the JARs created in the target file of the relational_information_content project can be moved to the libs folder of the plaque-calculator project.
+   Then the JARs created in the target file of the relational_information_content project can be moved to the libs folder of the      plaque-calculator project.
 
    Generate a JAR file by running the relational_information_content project:
 
@@ -93,24 +101,6 @@ The app is implemented with **Spring Boot** and **Maven**, and relies on the
    GRANT ALL PRIVILEGES ON DATABASE plaque_db TO plaque_user;
    ```
 
-## Running Project (with using Docker)
-
-1. **Install Docker Desktop**
-
-   Docker Desktop (https://www.docker.com/products/docker-desktop/) must be installed and running on the computer.
-
-2. **Go to Project Folder in the terminal and Run Docker Compose command**
-
-   After navigating to the project directory in the terminal, run the following command.
-
-   ```bash
-    docker-compose up --build
-    ```
-
-   This command will create the project image, download the required PostgreSQL database, and start both the application and the database.
-
-   The first run may take a few minutes, depending on your internet speed.
-
 ## Running Project
 
 1. **Build**
@@ -132,3 +122,18 @@ The app is implemented with **Spring Boot** and **Maven**, and relies on the
 3. **Using the App**
 
    In order to run the app, please go to the http://localhost:8080.
+
+## Running the Project with Docker
+
+1. **Open a terminal in the project folder and run Docker Compose**  
+   *(_Docker Desktop must be installed._)*
+
+   After navigating to the project directory, run:
+
+   ```bash
+   docker compose up --build
+   ```
+
+   This command builds the project image, pulls the required PostgreSQL image, and starts both the application and the database.
+
+   The first run may take a few minutes, depending on your internet speed.
