@@ -17,7 +17,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 ## Prerequisites
 
-- **Java ((JDK 17 or the version required by this project)** 
+- **Java (JDK 17 or the version required by this project)** 
 - **Maven**  
 - **PostgreSQL & pgAdmin (running locally)**
 
