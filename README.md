@@ -2,7 +2,7 @@
 
 ## PlaqueAnalyzer Studio
 
-PlaqueAnalyzer Studio is a full-stack web application designed to visualize redundancies (referred to as plaque) based on relational information content, while providing normalization to reduce them.  
+PlaqueAnalyzer Studio is a full-stack web application designed to visualize redundancies (referred to as `plaque`) based on relational information content, while providing normalization to reduce them.  
 The app is implemented with **Spring Boot** and **Maven**, and relies on the  
 [`relational_information_content`](https://github.com/sdbs-uni-p/relational_information_content) tool (included as an external JAR in `libs/`).
 
