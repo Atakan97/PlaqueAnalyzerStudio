@@ -8,7 +8,7 @@ The app is implemented with **Spring Boot** and **Maven**, and relies on the
 
 This project was conducted under the supervision of Stefanie Scherzinger and Christoph Köhnen as part of the Master’s thesis of Atakan Arda Celik.  
 The application is based on the ideas introduced in this paper:  
-**“A Plaque Test for Redundancies in Relational Data.”** 
+**A Plaque Test for Redundancies in Relational Data** 
 
 
 If you use this repository, please cite **PlaqueAnalyzer Studio**:
@@ -25,7 +25,7 @@ If you use this repository, please cite **PlaqueAnalyzer Studio**:
 }
 ```
 
-Please cite the underlying **A Plaque Test for Redundancies in Relational Data.** paper:
+Please cite the underlying **A Plaque Test for Redundancies in Relational Data** paper:
 
 ```bibtex
 @inproceedings{DBLP:conf/vldb/KohnenKZS23,
