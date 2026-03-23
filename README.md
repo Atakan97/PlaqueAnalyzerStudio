@@ -47,14 +47,22 @@ Cite the underlyting paper:
 
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
+## Build and Run Options
+
+Please choose **one** method:
+
+- **A) Local (without Docker)**
+- **B) Docker**
+
+## A) Run Locally (without Docker)
+
 ## Prerequisites
 
 - **Java (JDK 17 or the version required by this project)** 
 - **Maven**  
 - **PostgreSQL & pgAdmin (running locally)**
-- *(Optional for containerized setup)* **Docker Desktop**
 
-## Project Setup
+## Steps
 
 1. **Clone the repository**
 
@@ -63,54 +71,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
    cd mt-atakan-celik-code
    ```
 
-2. **Verify the external RIC JAR** 
-
-   This project depends on the following external JAR file, which should already be included in `libs/`:
-
-   ```text
-   libs/relational_information_content-1.0-SNAPSHOT-jar-with-dependencies.jar
-   ```
-
-   > This file is required for the application to start correctly.
-
-3. **(Optional) Rebuild the RIC JAR if it is missing**
-
-   If the file above is not present, build it from the `relational_information_content` project and copy it into this project’s        `libs/` directory.
-
-   ```bash
-   cd path/to/relational_information_content
-   mvn -DskipTests package
-   ```
-
-   Then copy:
-
-   ```text
-   target/relational_information_content-1.0-SNAPSHOT-jar-with-dependencies.jar
-   ```
-
-   to:
-
-   ```text
-   mt-atakan-celik-code/libs/
-   ```
-
-4. **Configure `application.properties`**
-
-   Check the configuration file at:
-
-   ```text
-   src/main/resources/application.properties
-   ```
-
-   Make sure the RIC JAR path is configured as:
-
-   ```properties
-   ric.jar.path=libs/relational_information_content-1.0-SNAPSHOT-jar-with-dependencies.jar
-   ```
-
-   If you use a different path, update this property accordingly.
-
-5. **Set up PostgreSQL**
+2. **Configure database credentials**
 
    Install PostgreSQL, then create the database and user:
 
@@ -120,7 +81,7 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
    GRANT ALL PRIVILEGES ON DATABASE plaque_db TO plaque_user;
    ```
 
-   If you use different credentials, update `application.properties`:
+   If you use different credentials, please update `application.properties`:
 
    ```properties
    spring.datasource.url=jdbc:postgresql://localhost:5432/plaque_db
@@ -128,41 +89,43 @@ This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
    spring.datasource.password=user123
    ```
 
-## Running the Project
-
-1. **Build the project**
-
-   Use the following command to build the project:
+3. **Build the project**
 
    ```bash
    mvn clean package
    ```
 
-2. **Run the application**
-
-   Start the application with Maven:
+4. **Run the application**
 
    ```bash
    mvn spring-boot:run
    ```
 
-3. **Access the application**
-
-   Once the application is running, open:
+5. **Open the application**
 
    http://localhost:8080
 
-## Running the Project with Docker
+## B) Run with Docker
 
-   Open a terminal in the project folder and run:
+## Prerequisites
 
+- **Docker Desktop**
+
+## Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
+   cd mt-atakan-celik-code
+   ```
+
+2. **Start all services**
    ```bash
    docker compose up --build
    ```
 
-   This command builds the project image, pulls the required PostgreSQL image, and starts both the application and the database.
-
-   > The first run may take a few minutes, depending on your internet speed.
+3. **Open the application**
+   http://localhost:8080
 
 ## Admin Panel Access
 
