@@ -10,6 +10,21 @@ This project was conducted under the supervision of **Stefanie Scherzinger** and
 The application is based on the concepts presented in the paper:  
 **“A Plaque Test for Redundancies in Relational Data.”** 
 
+
+If you use this repository, please cite **PlaqueAnalyzer Studio**:
+
+```bibtex
+@misc{celik2026plaqueanalyzerstudio,
+  author       = {Atakan Arda Celik and
+                  Christoph K{\"{o}}hnen and 
+                  Stefanie Scherzinger
+  },
+  title        = {PlaqueAnalyzer Studio},
+  note         = {Master's thesis software project, \url{https://github.com/Atakan97/PlaqueAnalyzerStudio}},
+  year         = {2026}
+}
+```
+
 ## License
 
 This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
