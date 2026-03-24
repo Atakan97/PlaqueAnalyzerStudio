@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if ricMatrix is available (passed via Thymeleaf inline JS in calc-results.html)
+    // Check if ricMatrix is available (passed with Thymeleaf inline JS in calc-results.html)
     const ricMatrix = window.ricMatrix || [];
     const plaqueMode = window.plaqueMode || 'enabled';
 
@@ -46,13 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const li = document.createElement('li');
                     // Replace -> with → for consistency
                     li.textContent = fd.replace(/->/g, '→');
-                    // Red coloring
+                    // Red coloring to FDs
                     li.classList.add('inferred');
                     fragment.appendChild(li);
                 });
                 fdListUl.appendChild(fragment);
             } else {
-                // No transitive FDs - show message
+                // No transitive FDs, show message
                 const messageEl = document.createElement('p');
                 messageEl.textContent = 'This set is transitively closed.';
                 messageEl.classList.add('transitive-closure-message');
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         returnBtn.style.display = 'none';
         showCalcBtn.style.display = 'inline-block';
 
-        // Initial color application (on load) - only if plaque mode is enabled
+        // Initial color application (on load), only if plaque mode is enabled
         if (plaqueMode === 'enabled') {
             applyColorScale('#initialCalcTable');
         } else {
@@ -133,9 +133,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Button listener, return to initial data
         returnBtn.addEventListener('click', () => {
             ricTable.style.display = 'none';
-            initialCalcTable.style.display = 'table'; // Show initial data table
+            // Show initial data table
+            initialCalcTable.style.display = 'table';
             returnBtn.style.display = 'none';
-            showCalcBtn.style.display = 'inline-block'; // Show showCalcBtn
+            // Show showCalcBtn
+            showCalcBtn.style.display = 'inline-block';
             // Apply color scale to initial table
             if (plaqueMode === 'enabled') {
                 applyColorScale('#initialCalcTable');

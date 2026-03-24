@@ -183,7 +183,7 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
     }
-    /* Layout that title on the left, sorting on the right. */
+    /* Layout that title on the left, sorting on the right */
     .table-container {
       background: white;
       border-radius: 16px;
@@ -501,7 +501,7 @@
   <div class="filter-section">
     <div class="filter-header">Filter Logs</div>
     <form method="GET" th:action="@{/admin/logs}" class="filter-form">
-      <!-- Keep the sort option when filtering by user name. -->
+      <!-- Keep the sort option when filtering by username -->
       <input type="hidden" name="sortOption" th:value="${sortOption}" />
       <div class="filter-group">
         <label class="filter-label" for="userNameFilter">User Name</label>
@@ -510,11 +510,11 @@
                 id="userNameFilter"
                 name="userNameFilter"
                 th:value="${userNameFilter}"
-                placeholder="Enter username..."
+                placeholder="Please enter username..."
                 class="filter-input"
         />
       </div>
-      <button type="submit" class="filter-btn">🔍 Filter</button>
+      <button type="submit" class="filter-btn"> Filter</button>
     </form>
   </div>
 
@@ -524,9 +524,9 @@
       <h2 class="table-title">Normalization Logs</h2>
 
       <div class="table-header-actions">
-        <!-- Sorting uses GET so admins can refresh the current page. -->
+        <!-- Sorting uses GET so admins can refresh the current page -->
         <form method="GET" th:action="@{/admin/logs}" class="sort-form" id="logSortForm">
-          <!-- Keep the user filter when changing sorting. -->
+          <!-- Keep the user filter when changing sorting -->
           <input type="hidden" name="userNameFilter" th:value="${userNameFilter}" />
 
           <label for="sortOption" class="sort-label">Sort by</label>
@@ -571,7 +571,7 @@
         <tr th:each="log : ${logs}">
           <td class="col-id" th:text="${log.id}">1</td>
           <td class="col-timestamp">
-            <!-- Use a date format that it is easy to read (example: "6 Feb 2026"). -->
+            <!-- Use a date format that it is easy to read -->
             <span
               class="timestamp-date"
               th:text="${log.timestamp != null ? #temporals.format(log.timestamp, 'd MMM uuuu', T(java.util.Locale).ENGLISH) : '-'}"
@@ -579,7 +579,7 @@
               6 Feb 2026
             </span>
 
-            <!-- Show the time under the date. -->
+            <!-- Show the time under the date -->
             <span
               class="timestamp-time"
               th:if="${log.timestamp != null}"
@@ -645,8 +645,7 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // Auto-submit the sort form when the admin changes the dropdown.
-    // This keeps the UI simple and avoids an extra "Apply" button.
+    // Auto-submit the sort form when the admin changes the dropdown
     const sortForm = document.getElementById('logSortForm');
     const sortSelect = document.getElementById('sortOption');
     if (sortForm && sortSelect) {
@@ -685,7 +684,7 @@
 
         // Build original FDs section
         htmlContent += '<div style="text-align:left; margin-bottom:16px;">';
-        htmlContent += '<h4 style="margin:0 0 8px; color:#1e293b; font-size:1rem;">📄 Original Table FDs</h4>';
+        htmlContent += '<h4 style="margin:0 0 8px; color:#1e293b; font-size:1rem;">Original Table FDs</h4>';
         if (originalFds && originalFds.trim().length > 0) {
           const fdItems = originalFds.split(';').filter(fd => fd.trim().length > 0);
           htmlContent += '<ul style="list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:6px;">';
@@ -702,7 +701,7 @@
 
         // Build decomposed table FDs section
         htmlContent += '<div style="text-align:left;">';
-        htmlContent += '<h4 style="margin:0 0 8px; color:#1e293b; font-size:1rem;">📊 Decomposed Table FDs</h4>';
+        htmlContent += '<h4 style="margin:0 0 8px; color:#1e293b; font-size:1rem;">Decomposed Table FDs</h4>';
 
         let decomposedTables = [];
         if (decomposedFdsRaw && decomposedFdsRaw.trim().length > 0) {
