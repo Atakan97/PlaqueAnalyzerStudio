@@ -23,8 +23,8 @@ Please choose one method:
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Atakan97/PlaqueAnalyzerStudio.git
-   cd PlaqueAnalyzerStudio
+   git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
+   cd mt-atakan-celik-code
    ```
 
 2. **Configure database credentials (PostgreSQL)**
@@ -72,8 +72,8 @@ Please choose one method:
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Atakan97/PlaqueAnalyzerStudio.git
-   cd PlaqueAnalyzerStudio
+   git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
+   cd mt-atakan-celik-code
    ```
 
 2. **Start all services**
