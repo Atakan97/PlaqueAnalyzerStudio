@@ -23,11 +23,11 @@ Please choose one method:
 1. **Clone the repository**
 
    ```bash
-   git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
-   cd mt-atakan-celik-code
+   git clone https://github.com/Atakan97/PlaqueAnalyzerStudio.git
+   cd PlaqueAnalyzerStudio
    ```
 
-2. **Configure database credentials**
+2. **Configure database credentials (PostgreSQL)**
 
    Install PostgreSQL, then create the database and user:
 
@@ -72,8 +72,8 @@ Please choose one method:
 1. **Clone the repository**
 
    ```bash
-   git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
-   cd mt-atakan-celik-code
+   git clone https://github.com/Atakan97/PlaqueAnalyzerStudio.git
+   cd PlaqueAnalyzerStudio
    ```
 
 2. **Start all services**
@@ -88,9 +88,9 @@ Please choose one method:
 
 ---
 
-## Admin Panel Access (Applies to Both Local and Docker Runs)
+## Application Admin Panel Credentials (Applies to Both Local and Docker Runs)
 
-After the application starts (using either **A) Local** or **B) Docker**), you can log in to the admin panel with:
+After the application starts (using either **A) Local** or **B) Docker**), you can log in to the admin panel with (not the database):
 
 - **Username:** `admin`
 - **Password:** `1234`
