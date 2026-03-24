@@ -88,8 +88,6 @@ Please choose one method:
 
 ---
 
-See [Admin Panel Access](#admin-panel-access-applies-to-both-local-and-docker-runs).
-
 ## Admin Panel Access (Applies to Both Local and Docker Runs)
 
 After the application starts (using either **A) Local** or **B) Docker**), you can log in to the admin panel with:
