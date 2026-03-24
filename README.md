@@ -106,7 +106,7 @@ src/main/resources/application.properties
 This project was conducted under the supervision of Stefanie Scherzinger and Christoph Köhnen as part of the Master’s thesis of Atakan Arda Celik.
 
 The application is based on the ideas introduced in this paper:  
-_A Plaque Test for Redundancies in Relational Data_ by Christoph Köhnen, Stefan Klessinger, Jens Zumbrägel and Stefanie Scherzinger, published in the QDB workshop co-located with VLDB 2023.
+**A Plaque Test for Redundancies in Relational Data** by Christoph Köhnen, Stefan Klessinger, Jens Zumbrägel and Stefanie Scherzinger, published in the QDB workshop co-located with VLDB 2023.
 
 
 If you use this repository, please cite **PlaqueAnalyzer Studio**:
