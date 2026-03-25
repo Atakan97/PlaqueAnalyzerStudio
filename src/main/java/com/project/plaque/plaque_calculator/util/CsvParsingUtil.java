@@ -1,20 +1,17 @@
 package com.project.plaque.plaque_calculator.util;
 
 import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.csv.CSVParser;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
  * Utility helpers for parsing and normalizing CSV text where rows are separated by semicolons
- * in the UI but columns follow RFC-4180 quoting rules.
+ * in the UI but columns follow RFC-4180 quoting rules
  */
 public final class CsvParsingUtil {
 
@@ -79,7 +76,6 @@ public final class CsvParsingUtil {
         List<String> result = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean inQuotes = false;
-        int quoteToggleCount = 0;
 
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
@@ -94,7 +90,6 @@ public final class CsvParsingUtil {
                 } else {
                     // Toggle quote state
                     inQuotes = !inQuotes;
-                    quoteToggleCount++;
                     current.append(c);
                 }
             } else if (c == delimiter && !inQuotes) {
@@ -127,50 +122,6 @@ public final class CsvParsingUtil {
         }
     }
 
-    public static String toCompactString(List<List<String>> rows) {
-        if (rows == null || rows.isEmpty()) {
-            return "";
-        }
-        List<String> serialized = new ArrayList<>(rows.size());
-        for (List<String> row : rows) {
-            serialized.add(writeRow(row));
-        }
-        return String.join(";", serialized);
-    }
-
-    private static String writeRow(List<String> row) {
-        if (row == null || row.isEmpty()) {
-            return "";
-        }
-        try (StringWriter writer = new StringWriter();
-             CSVPrinter printer = new CSVPrinter(writer, CSV_FORMAT)) {
-            printer.printRecord(row);
-            return writer.toString().trim();
-        } catch (IOException ex) {
-            throw new IllegalStateException("Failed to serialize CSV row", ex);
-        }
-    }
-
-    public static List<List<String>> normalizeRows(String manualData) {
-        List<List<String>> parsed = parseRows(manualData);
-        if (parsed.isEmpty()) {
-            return List.of();
-        }
-        int expectedCols = parsed.get(0).size();
-        List<List<String>> normalized = new ArrayList<>(parsed.size());
-        for (List<String> row : parsed) {
-            List<String> copy = new ArrayList<>(row);
-            if (copy.size() < expectedCols) {
-                for (int i = copy.size(); i < expectedCols; i++) {
-                    copy.add("");
-                }
-            } else if (copy.size() > expectedCols) {
-                copy = new ArrayList<>(copy.subList(0, expectedCols));
-            }
-            normalized.add(Collections.unmodifiableList(copy));
-        }
-        return Collections.unmodifiableList(normalized);
-    }
 
     /**
      * Convert rows to a simple semicolon-separated format for RIC JAR consumption.

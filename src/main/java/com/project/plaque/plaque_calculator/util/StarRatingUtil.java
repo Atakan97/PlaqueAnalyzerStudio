@@ -1,7 +1,7 @@
 package com.project.plaque.plaque_calculator.util;
 
 
-// Utility class for calculating star ratings based on normalization performance.
+// Utility class for calculating star ratings based on normalization performance
 public class StarRatingUtil {
 
 	// Time thresholds in seconds (5 min, 10 min, 15 min, 20 min)
@@ -11,7 +11,7 @@ public class StarRatingUtil {
 	private static final int TWENTY_MINUTES = 1200;
 
 	/**
-	 * Table for star ratings.
+	 * Table for star ratings
 	 * Rows represent attempt numbers (1st, 2nd, 3rd, 4th+)
 	 * Columns represent time ranges: <5min, 5-10min, 10-15min, 15-20min, >20min
 	 */
@@ -23,7 +23,7 @@ public class StarRatingUtil {
 		/* 4th+ */ {  2,     1,       1,        1,        1  }
 	};
 
-	// Calculates the star rating based on attempts and elapsed time.
+	// Calculates the star rating based on attempts and elapsed time
 	public static int calculateStarRating(int attempts, long elapsedSeconds) {
 		// Determine the row index based on attempts (capped at 4th+ row)
 		int attemptIndex = Math.min(attempts - 1, 3);
@@ -38,7 +38,7 @@ public class StarRatingUtil {
 		return RATING_TABLE[attemptIndex][timeIndex];
 	}
 
-	// Determines the time range index for the table.
+	// Determines the time range index for the table
 	private static int getTimeIndex(long elapsedSeconds) {
 		if (elapsedSeconds < FIVE_MINUTES) {
 			return 0;  // Under 5 minutes

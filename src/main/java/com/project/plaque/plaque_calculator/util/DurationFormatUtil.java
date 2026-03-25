@@ -1,7 +1,7 @@
 package com.project.plaque.plaque_calculator.util;
 
 /**
- * Utility class for formatting elapsed time (seconds) into a readable string
+ * Utility class for formatting elapsed time (seconds) into a string
  */
 public class DurationFormatUtil {
 
@@ -43,8 +43,8 @@ public class DurationFormatUtil {
 	}
 
 	/**
-	 * Formats an average duration into a readable string
-	 * Returns null if the value is negative (meaning no data available).
+	 * Formats an average duration into a string
+	 * Returns null if the value is negative (meaning no data available)
 	 */
 	public static String formatAverage(double avgSeconds) {
 		if (avgSeconds < 0) {

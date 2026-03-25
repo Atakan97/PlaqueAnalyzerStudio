@@ -130,20 +130,14 @@
   const restoredInputData = /*[[${restoredInputData}]]*/ null;
   const restoredInputDataJson = /*[[${restoredInputDataJson}]]*/ null;
   const restoredFdList = /*[[${restoredFdList}]]*/ null;
-  // Plaque mode for conditional UI behavior
+  // Plaque mode for UI behavior
   window.plaqueMode = /*[[${plaqueMode}]]*/ 'enabled';
   /*]]>*/
-
-
   document.addEventListener('DOMContentLoaded', () => {
     let dataRestored = false;
     let fdRestored = false;
 
-    // Debug logging for restoration
-    console.log('[calc.html] Restoration check - restoredInputDataJson:', restoredInputDataJson ? restoredInputDataJson.substring(0, 200) + '...' : 'null');
-    console.log('[calc.html] Restoration check - restoredInputData:', restoredInputData ? restoredInputData.substring(0, 200) + '...' : 'null');
-
-    // Restore data and FDs - prefer JSON format if available
+    // Restore data and FDs, prefer JSON format if available
     if (restoredInputDataJson && restoredInputDataJson.trim() !== "" && restoredInputDataJson !== "null") {
       try {
         const parsedData = JSON.parse(restoredInputDataJson);
@@ -157,9 +151,8 @@
         console.error('[calc.html] Failed to parse restoredInputDataJson:', e);
       }
     }
-    // Fallback to legacy format if JSON not available
+    // If JSON not available, return to old string format
     if (!dataRestored && restoredInputData && restoredInputData.trim() !== "") {
-      console.log('[calc.html] Falling back to legacy format restoration');
       restoreManualTable(restoredInputData);
       dataRestored = true;
     }
@@ -168,8 +161,7 @@
       fdRestored = true;
     }
 
-    // Set table visibility
-    // If a restore is done, activate the correct tab
+    // Setting table visibility, if a restore is done, activate the correct tab
     if (dataRestored) {
       // Ensuring it's active as it's a single tab
       const tabUpload = document.getElementById('tab-upload');
@@ -199,7 +191,6 @@
     }
   });
 
-  // Restoration functions with full DOM recreation logic
   // Manual Data Table Filling Function
   function restoreManualTable(dataString) {
     // Parse using PapaParse to handle quoted values with commas
@@ -225,7 +216,7 @@
       columnCountInput.value = columnCount;
     }
 
-    // Rebuild header (following the updateManualTable logic in main.js)
+    // Rebuild header (with following the updateManualTable logic in main.js)
     if (thead) {
       thead.innerHTML = '';
       const headerRow = thead.insertRow();
@@ -297,7 +288,7 @@
       tbody.removeChild(tbody.firstChild);
     }
 
-    // Data rows - directly use the parsed JSON array
+    // Data rows, directly use the parsed JSON array
     for (let i = 0; i < parsedData.length; i++) {
       const cells = parsedData[i];
       const newRow = tbody.insertRow();
