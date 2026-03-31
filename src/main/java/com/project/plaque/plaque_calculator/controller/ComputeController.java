@@ -641,7 +641,7 @@ public class ComputeController {
 		return "enabled";
 	}
 
-	// Gets mode from request first; if missing, uses session mode as alternativei
+	// Gets mode from request first; if missing, uses session mode as alternative
 	private String resolvePlaqueMode(String modeParam, HttpSession session) {
 		if (modeParam != null && !modeParam.isBlank()) {
 			return normalizePlaqueMode(modeParam);

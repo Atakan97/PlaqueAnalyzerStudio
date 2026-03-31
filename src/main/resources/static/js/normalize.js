@@ -3343,7 +3343,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fdUl = fdContainer ? fdContainer.querySelector('ul') : null;
                 const tr = (Array.isArray(json.tableResults) && json.tableResults[i]) ? json.tableResults[i] : {};
                 const projList = Array.isArray(tr.projectedFDs) ? tr.projectedFDs : (tr.projectedFDs === undefined ? [] : tr.projectedFDs);
-                const listToUse = (projList && projList.length > 0) ? projList : (readProjectedFdsFromWrapper(w) || []);
+                const existingDisplayList = parseProjectedFdsValue(w.dataset.projectedFdsOrig);
+                // Keep the UI list in original numbering when backend list is not available
+                const listToUse = (projList && projList.length > 0)
+                    ? projList
+                    : (existingDisplayList.length > 0 ? existingDisplayList : (readProjectedFdsFromWrapper(w) || []));
                 const normalForm = tr.normalForm || null; // Get normal form from response
 
                 // Get transitive FDs from response
@@ -4149,11 +4153,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Build a safe FD string from local + original values.
+            // Show original numbering in UI. Local numbering stays for computation only
             const localFdsList = i < restoreFds.length ? normalizeToStringList(restoreFds[i]) : [];
             const originalFdsList = i < restoreFdsOriginal.length ? normalizeToStringList(restoreFdsOriginal[i]) : [];
-            const mergedFds = localFdsList.length > 0 ? localFdsList : originalFdsList;
-            const fds = mergedFds.join(';');
+            const displayFdsList = originalFdsList.length > 0 ? originalFdsList : localFdsList;
+            const fds = displayFdsList.join(';');
 
             const normalForm = (i < restoreNormalForms.length && typeof restoreNormalForms[i] === 'string')
                 ? restoreNormalForms[i]
@@ -4177,7 +4181,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            createDecomposedTable({
+            const restoredWrapper = createDecomposedTable({
                 initialColumns: columns,
                 initialManualData: manualData || null,
                 initialFds: fds || null,
@@ -4187,6 +4191,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 forceShowFdPanel: true,
                 autoAppend: true
             });
+
+            if (restoredWrapper) {
+                const localFdsToStore = localFdsList.length > 0 ? localFdsList : displayFdsList;
+                try { restoredWrapper.dataset.projectedFds = JSON.stringify(localFdsToStore); } catch (e) {}
+                try { restoredWrapper.dataset.projectedFdsOrig = JSON.stringify(displayFdsList); } catch (e) {}
+            }
         }
 
         // Make sure buttons are visible for user interaction
@@ -4407,7 +4417,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let localFds = [];
             try { localFds = readProjectedFdsFromWrapper(w) || []; } catch (e) { localFds = []; }
 
-            let originalFds = localFds.slice();
+            let originalFds = [];
             if (w.dataset.projectedFdsOrig) {
                 try {
                     const parsed = JSON.parse(w.dataset.projectedFdsOrig);
@@ -4417,6 +4427,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (err) {
                     // keep fallback
                 }
+            }
+            // Fallback supports old wrappers that do not have projectedFdsOrig
+            if (originalFds.length === 0 && localFds.length > 0) {
+                originalFds = localFds.slice();
             }
 
             let ricMatrix = [];
