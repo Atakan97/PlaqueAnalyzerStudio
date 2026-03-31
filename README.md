@@ -3,9 +3,6 @@
 PlaqueAnalyzer Studio is a web application designed to visualize redundancies (referred to as **plaque**) based on relational information content, while providing normalization to reduce them.  
 The app is implemented with **Spring Boot** and **Maven**, and relies on the [`relational_information_content`](https://github.com/sdbs-uni-p/relational_information_content) tool (included as an external JAR in `libs/`).
 
-<img width="1251" height="1661" alt="projectss1" src="https://github.com/user-attachments/assets/3a323001-f2d7-4e05-80a6-8724eca2673e" /> 
-<img width="1233" height="980" alt="projectss2" src="https://github.com/user-attachments/assets/ba61d576-6789-4ddb-8536-600925107fc9" />
-
 ## Build and Run Options
 
 Please choose one method:
@@ -26,8 +23,8 @@ Please choose one method:
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Atakan97/PlaqueAnalyzerStudio.git
-   cd PlaqueAnalyzerStudio
+   git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
+   cd mt-atakan-celik-code
    ```
 
 2. **Configure database credentials (PostgreSQL)**
@@ -75,8 +72,8 @@ Please choose one method:
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Atakan97/PlaqueAnalyzerStudio.git
-   cd PlaqueAnalyzerStudio
+   git clone https://git.fim.uni-passau.de/sdbs/theses/students/mt-atakan-celik-code.git
+   cd mt-atakan-celik-code
    ```
 
 2. **Start all services**
