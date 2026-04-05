@@ -1,0 +1,40 @@
+name: CD
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-to-railway:
+    # Skip deployment if secret is not configured yet.
+    if: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Trigger Railway deploy hook
+        run: curl -fsSL -X POST "$RAILWAY_DEPLOY_HOOK_URL"
+        env:
+          RAILWAY_DEPLOY_HOOK_URL: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}
+
+      - name: Optional health check
+        if: ${{ secrets.RAILWAY_HEALTHCHECK_URL != '' }}
+        env:
+          RAILWAY_HEALTHCHECK_URL: ${{ secrets.RAILWAY_HEALTHCHECK_URL }}
+        run: |
+          for i in {1..20}; do
+            if curl -fsSL "$RAILWAY_HEALTHCHECK_URL" > /dev/null; then
+              echo "Health check passed."
+              exit 0
+            fi
+            echo "Service is not ready yet. Retry $i/20..."
+            sleep 10
+          done
+          echo "Health check failed."
+          exit 1
+
