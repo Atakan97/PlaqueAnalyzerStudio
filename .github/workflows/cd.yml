@@ -11,21 +11,23 @@ concurrency:
 
 jobs:
   deploy-to-railway:
-    # Skip deployment if secret is not configured yet.
-    if: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      RAILWAY_DEPLOY_HOOK_URL: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}
+      RAILWAY_HEALTHCHECK_URL: ${{ secrets.RAILWAY_HEALTHCHECK_URL }}
 
     steps:
+      - name: Skip deploy when hook is missing
+        if: ${{ env.RAILWAY_DEPLOY_HOOK_URL == '' }}
+        run: echo "RAILWAY_DEPLOY_HOOK_URL is not set. Deployment skipped."
+
       - name: Trigger Railway deploy hook
+        if: ${{ env.RAILWAY_DEPLOY_HOOK_URL != '' }}
         run: curl -fsSL -X POST "$RAILWAY_DEPLOY_HOOK_URL"
-        env:
-          RAILWAY_DEPLOY_HOOK_URL: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}
 
       - name: Optional health check
-        if: ${{ secrets.RAILWAY_HEALTHCHECK_URL != '' }}
-        env:
-          RAILWAY_HEALTHCHECK_URL: ${{ secrets.RAILWAY_HEALTHCHECK_URL }}
+        if: ${{ env.RAILWAY_DEPLOY_HOOK_URL != '' && env.RAILWAY_HEALTHCHECK_URL != '' }}
         run: |
           for i in {1..20}; do
             if curl -fsSL "$RAILWAY_HEALTHCHECK_URL" > /dev/null; then
@@ -37,4 +39,5 @@ jobs:
           done
           echo "Health check failed."
           exit 1
+
 
