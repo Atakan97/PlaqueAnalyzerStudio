@@ -14,30 +14,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      RAILWAY_DEPLOY_HOOK_URL: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}
       RAILWAY_HEALTHCHECK_URL: ${{ secrets.RAILWAY_HEALTHCHECK_URL }}
 
     steps:
-      - name: Skip deploy when hook is missing
-        if: ${{ env.RAILWAY_DEPLOY_HOOK_URL == '' }}
-        run: echo "RAILWAY_DEPLOY_HOOK_URL is not set. Deployment skipped."
+      - name: Wait for Railway auto-deploy rollout
+        run: sleep 45
 
-      - name: Trigger Railway deploy hook
-        if: ${{ env.RAILWAY_DEPLOY_HOOK_URL != '' }}
-        run: curl -fsSL -X POST "$RAILWAY_DEPLOY_HOOK_URL"
+      - name: Skip health check when URL is missing
+        if: ${{ env.RAILWAY_HEALTHCHECK_URL == '' }}
+        run: echo "RAILWAY_HEALTHCHECK_URL is not set. Health verification skipped."
 
-      - name: Optional health check
-        if: ${{ env.RAILWAY_DEPLOY_HOOK_URL != '' && env.RAILWAY_HEALTHCHECK_URL != '' }}
+      - name: Verify production health endpoint
+        if: ${{ env.RAILWAY_HEALTHCHECK_URL != '' }}
         run: |
           for i in {1..20}; do
-            if curl -fsSL "$RAILWAY_HEALTHCHECK_URL" > /dev/null; then
-              echo "Health check passed."
+            response="$(curl -fsSL "$RAILWAY_HEALTHCHECK_URL" || true)"
+            if echo "$response" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+              echo "Health check passed with status UP."
               exit 0
             fi
-            echo "Service is not ready yet. Retry $i/20..."
-            sleep 10
+            echo "Service is not healthy yet. Retry $i/20..."
+            sleep 15
           done
-          echo "Health check failed."
+          echo "Health check failed after retries."
           exit 1
 
 
