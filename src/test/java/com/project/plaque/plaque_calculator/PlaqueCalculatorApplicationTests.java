@@ -17,7 +17,7 @@ class PlaqueCalculatorApplicationTests {
 
 	@Test
 	void contextLoads() {
-		// Simple smoke test - verifies that Spring context loads successfully
+		// This test verifies that Spring context loads successfully
 		// This test runs with H2 in-memory database
 	}
 
