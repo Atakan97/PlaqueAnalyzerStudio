@@ -10,25 +10,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy-to-railway:
+  deploy-to-render:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      RAILWAY_HEALTHCHECK_URL: ${{ secrets.RAILWAY_HEALTHCHECK_URL }}
+      RENDER_HEALTHCHECK_URL: ${{ secrets.RENDER_HEALTHCHECK_URL }}
 
     steps:
-      - name: Wait for Railway auto-deploy rollout
+      - name: Wait for Render deploy rollout
         run: sleep 45
 
       - name: Skip health check when URL is missing
-        if: ${{ env.RAILWAY_HEALTHCHECK_URL == '' }}
-        run: echo "RAILWAY_HEALTHCHECK_URL is not set. Health verification skipped."
+        if: ${{ env.RENDER_HEALTHCHECK_URL == '' }}
+        run: echo "RENDER_HEALTHCHECK_URL is not set. Health verification skipped."
 
       - name: Verify production health endpoint
-        if: ${{ env.RAILWAY_HEALTHCHECK_URL != '' }}
+        if: ${{ env.RENDER_HEALTHCHECK_URL != '' }}
         run: |
           for i in {1..20}; do
-            response="$(curl -fsSL "$RAILWAY_HEALTHCHECK_URL" || true)"
+            response="$(curl -fsSL "$RENDER_HEALTHCHECK_URL" || true)"
             if echo "$response" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
               echo "Health check passed with status UP."
               exit 0
@@ -38,5 +38,3 @@ jobs:
           done
           echo "Health check failed after retries."
           exit 1
-
-
